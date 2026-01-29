@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../screens/reading_screen.dart';
 import '../screens/library_screen.dart';
 import '../screens/auth_screen.dart';
+import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -29,6 +30,18 @@ class _MainNavigationState extends State<MainNavigation> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('Diálogo interior'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(

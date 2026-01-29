@@ -186,6 +186,27 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _handleResetPassword(AuthProvider authProvider) async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor ingresa tu email')),
+      );
+      return;
+    }
+
+    final success = await authProvider.sendPasswordReset(email);
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Se ha enviado un correo para restablecer tu contraseña')),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Error al enviar email')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -383,7 +404,20 @@ class _AuthScreenState extends State<AuthScreen> {
                       style: const TextStyle(color: Colors.red),
                     ),
                   ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
+
+                // Reset Password Button (only for login)
+                if (_isLoginMode)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: authProvider.isLoading
+                          ? null
+                          : () => _handleResetPassword(authProvider),
+                      child: const Text('¿Olvidaste tu contraseña?'),
+                    ),
+                  ),
+                const SizedBox(height: 16),
 
                 // Auth Button
                 SizedBox(

@@ -148,6 +148,49 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Envía email para restablecer contraseña
+  Future<bool> sendPasswordReset(String email) async {
+    try {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+
+      await _authService.sendPasswordResetEmail(email);
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Elimina la cuenta y todos los datos del usuario
+  Future<bool> deleteAccount() async {
+    try {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+
+      await _authService.deleteAccount();
+
+      _isAuthenticated = false;
+      _userId = null;
+      _userEmail = null;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Limpia el mensaje de error
   void clearError() {
     _errorMessage = null;

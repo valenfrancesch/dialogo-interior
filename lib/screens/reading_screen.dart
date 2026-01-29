@@ -10,6 +10,7 @@ import '../models/gospel_data.dart';
 import '../models/prayer_entry.dart';
 import '../repositories/gospel_repository.dart';
 import '../repositories/prayer_repository.dart';
+import '../services/notification_service.dart';
 
 class ReadingScreen extends StatefulWidget {
   final GospelData? gospel;
@@ -414,10 +415,14 @@ class _ReadingScreenState extends State<ReadingScreen> {
                               ),
                           onHighlight: (text) {
                             setState(() => _highlightedText = text);
+                            
+                            // Schedule notification for favorite verse (e.g., 20:00)
+                            NotificationService().scheduleFavoriteReminder(text, 20, 0);
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Pasaje destacado actualizado'),
-                                duration: Duration(milliseconds: 1500),
+                                content: Text('Pasaje destacado actualizado y programado como recordatorio'),
+                                duration: Duration(milliseconds: 2000),
                               ),
                             );
                             _saveReflection(gospel);

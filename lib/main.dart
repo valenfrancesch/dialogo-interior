@@ -8,12 +8,32 @@ import 'main_navigation.dart';
 import 'screens/auth_screen.dart';
 import 'providers/app_providers.dart';
 import 'providers/auth_provider.dart' as custom_auth;
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
+  // Initialize Notifications and Schedule Gospel Reminder
+  // We don't want a notification failure to crash the entire app
+  try {
+    final notificationService = NotificationService();
+    await notificationService.init();
+    
+    // Schedule daily Gospel reminder (9:00 AM)
+    await notificationService.scheduleGospelReminder(9, 0);
+  } catch (e) {
+    debugPrint('Notification initialization failed: $e');
+  }
+
   runApp(const MyApp());
 }
 

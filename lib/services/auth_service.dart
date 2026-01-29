@@ -157,12 +157,43 @@ class AuthService {
     }
   }
 
-  /// Elimina la cuenta del usuario actual (peligroso)
-  Future<void> deleteAccount() async {
+  /// Envía email de restablecimiento de contraseña
+  Future<void> sendPasswordResetEmail(String email) async {
     try {
-      await _auth.currentUser?.delete();
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
     } catch (e) {
-      throw Exception('Error al eliminar cuenta: $e');
+      throw Exception('Error al enviar email de restablecimiento: $e');
+    }
+  }
+
+  /// Elimina la cuenta del usuario actual y todos sus datos (reflexiones y perfil)
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // 1. Borrar todas las reflexiones/entradas del usuario
+      final entries = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('entries')
+          .get();
+
+      for (var doc in entries.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2. Borrar el documento de perfil del usuario
+      await _firestore.collection('users').doc(user.uid).delete();
+
+      // 3. Borrar la cuenta de Firebase Auth
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('Error al eliminar cuenta y datos: $e');
     }
   }
 }
