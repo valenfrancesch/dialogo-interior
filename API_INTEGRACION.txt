@@ -1,0 +1,411 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║         ✅ INTEGRACIÓN CON API EVANGELI.NET - COMPLETADA ✅              ║
+║                                                                            ║
+║                  Conexión en Vivo con Lecturas Bíblicas Diarias           ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          📡 ARQUITECTURA DE INTEGRACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│                          EVANGELI.NET API (Feed RSS)                       │
+│                 https://evangeli.net/evangelio/feed/sp/YYYY/MM/DD          │
+│                                                                             │
+│  ▼ (Petición HTTP GET)                                                     │
+│                                                                             │
+│           ┌───────────────────────────────────────┐                        │
+│           │   EvangelioService (lib/services/)    │                        │
+│           │   - fetchDailyGospel(DateTime)        │                        │
+│           │   - _parseGospelFromRss()             │                        │
+│           │   - _extractLiturgicalTitle()         │                        │
+│           │   - Timeout: 10 segundos              │                        │
+│           │   - Manejo de errores                 │                        │
+│           └───────────────────────────────────────┘                        │
+│                           ▼                                                │
+│           ┌───────────────────────────────────────┐                        │
+│           │   GospelData Model (lib/models/)      │                        │
+│           │   - title                             │                        │
+│           │   - liturgicalTitle                   │                        │
+│           │   - reference (Juan 3:16-21)          │                        │
+│           │   - evangeliumText                    │                        │
+│           │   - priestComment                     │                        │
+│           │   - date                              │                        │
+│           └───────────────────────────────────────┘                        │
+│                ▼                          ▼                               │
+│      ┌─────────────────┐          ┌──────────────────┐                   │
+│      │ ReadingScreen   │          │ FlashbackScreen  │                   │
+│      │ (Lectura)       │          │ (Historial)      │                   │
+│      │ FutureBuilder   │          │ Inicializa Gospel│                   │
+│      │ with Gospel API │          │ Pasa a Reading   │                   │
+│      └─────────────────┘          └──────────────────┘                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                            📁 ARCHIVOS CREADOS/MODIFICADOS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ NUEVOS ARCHIVOS:
+
+1. lib/models/gospel_data.dart (~80 líneas)
+   └─ Modelo de datos con conversión JSON/Firebase
+   └─ Campos: title, liturgicalTitle, reference, evangeliumText, priestComment, date
+   └─ Métodos: fromJson(), toJson(), fromFirebase()
+
+2. lib/services/evangelio_service.dart (~120 líneas)
+   └─ Servicio de conexión a Evangeli.net
+   └─ URL dinámica basada en fecha: {year}/{month}/{day}
+   └─ Parser XML/RSS
+   └─ Manejo de timeouts (10 segundos)
+   └─ Tratamiento de errores
+
+✅ ARCHIVOS MODIFICADOS:
+
+1. pubspec.yaml
+   └─ http: ^1.1.0          (peticiones HTTP)
+   └─ intl: ^0.18.1         (manejo de fechas)
+   └─ provider: ^6.0.5      (gestión de estado)
+   └─ xml: ^6.3.0           (parseo de RSS)
+
+2. lib/screens/reading_screen.dart (~280 líneas)
+   └─ Convertido a FutureBuilder
+   └─ Parámetro opcional: gospel (del Flashback)
+   └─ Estados: Loading, Error, Content
+   └─ Display dinámico del contenido del API
+   └─ Fallback a mock_data si hay error
+
+3. lib/screens/flashback_screen.dart (ACTUALIZADO)
+   └─ Inicializa EvangelioService en initState()
+   └─ Pasa Gospel al botón "Write Today's Memory"
+   └─ Botón "📚" también pasa Gospel
+   └─ FutureBuilder en FAB para estado de carga
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                            🔄 FLUJO DE DATOS COMPLETO
+═══════════════════════════════════════════════════════════════════════════════
+
+FLUJO 1: Usuario abre app → Lectura del Día
+
+  1. App inicia en ReadingScreen (sin parámetro gospel)
+  2. ReadingScreen ejecuta: EvangelioService.fetchDailyGospel(DateTime.now())
+  3. Servicio hace petición HTTP a: evangeli.net/evangelio/feed/sp/2026/01/27
+  4. Parsea respuesta RSS → Extrae: title, reference, evangeliumText, priestComment
+  5. Crea GospelData con todos los campos
+  6. FutureBuilder muestra contenido en pantalla
+  7. Usuario lee Evangelio/Comentario y reflexiona
+
+FLUJO 2: Usuario desde Flashback → Lectura del Día (Optimizado)
+
+  1. Usuario abre Flashback
+  2. FlashbackScreen ejecuta: EvangelioService.fetchDailyGospel(DateTime.now())
+  3. Gospel se carga en background
+  4. Usuario ve historial mientras se carga
+  5. Usuario toca "Write Today's Memory"
+  6. FutureBuilder en FAB verifica si Gospel está listo
+  7. Si sí → Navigator.push(ReadingScreen(gospel: gospelData))
+  8. Si no → Navigator.push(ReadingScreen())
+  9. ReadingScreen usa Gospel precargado (sin segundo fetch)
+  10. Flujo más rápido y eficiente
+
+FLUJO 3: Guardar Reflexión a Firebase
+
+  1. Usuario escribe reflexión en ReadingScreen
+  2. Usuario toca botón guardar (próximo: implementar)
+  3. Se envía a Firebase:
+     {
+       userId: string,
+       date: timestamp,
+       reference: "Juan 3:16-21",        ← De API
+       evangeliumText: string,           ← De API
+       priestComment: string,            ← De API
+       userReflection: string,           ← Del usuario
+       tags: array,
+       wordCount: int
+     }
+  4. La "clave" es el reference para buscar reflexiones históricas
+  5. Dentro de 3 años: app busca reflexiones con reference="Juan 3:16-21"
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          🛠️ DETALLES TÉCNICOS DEL SERVICIO
+═══════════════════════════════════════════════════════════════════════════════
+
+EVANGELI.NET API:
+
+  Endpoint:   https://evangeli.net/evangelio/feed/sp/{year}/{month}/{day}
+  Método:     GET
+  Respuesta:  RSS/XML
+  Idioma:     Español (sp)
+  Timeout:    10 segundos (configurable)
+
+  Ejemplo de URL:
+  ➜ https://evangeli.net/evangelio/feed/sp/2026/01/27
+
+ESTRUCTURA DE RESPUESTA (XML):
+
+  <?xml version="1.0" encoding="UTF-8"?>
+  <rss version="2.0">
+    <channel>
+      <item>
+        <title>Evangelio de Juan (3, 31-36)</title>
+        <description>
+          <![CDATA[
+            <p><b>Juan 3:16-21</b></p>
+            <p>Porque de tal manera amó Dios al mundo...</p>
+            ...
+            <strong>Comentario:</strong>
+            <p>Reflexión del sacerdote...</p>
+          ]]>
+        </description>
+      </item>
+    </channel>
+  </rss>
+
+PARSER IMPLEMENTADO:
+
+  • Extrae <title> → GospelData.title
+  • Extrae <description> → ParseaHTML
+    ├─ <b>Reference</b> → GospelData.reference
+    ├─ Primer <p> → GospelData.evangeliumText
+    └─ Sección Comentario → GospelData.priestComment
+  • Limpia HTML tags con regex
+  • Convierte &nbsp; a espacios
+  • Valida campos (fallback si faltan)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                            🎨 ESTADOS DE LA UI
+═══════════════════════════════════════════════════════════════════════════════
+
+READINGSCREEN - ESTADO CARGANDO:
+
+  ┌────────────────────────────────────────────────────────────────┐
+  │                                                                │
+  │                   ⟳ (spinner)                                 │
+  │              Cargando lectura del día...                      │
+  │                                                                │
+  └────────────────────────────────────────────────────────────────┘
+
+READINGSCREEN - ESTADO ERROR:
+
+  ┌────────────────────────────────────────────────────────────────┐
+  │  ⟲ Lectura                                      share bookmark │
+  │  Error al cargar el evangelio                                 │
+  │                                                                │
+  │        ⚠️                                                      │
+  │   Error al cargar el evangelio                               │
+  │                                                                │
+  │   Error al conectar con el servicio: ...                     │
+  │                                                                │
+  │                    [ ↻ Reintentar ]                          │
+  │                                                                │
+  └────────────────────────────────────────────────────────────────┘
+
+READINGSCREEN - ESTADO ÉXITO:
+
+  ┌────────────────────────────────────────────────────────────────┐
+  │  Juan 3:16-21                                  share bookmark  │
+  │  [Evangelio] [Comentario] (toggle)                            │
+  │  ┌──────────────────────────────────────────────────────────┐ │
+  │  │"Porque de tal manera amó Dios al mundo, que ha dado..  │ │
+  │  │...mas tenga vida eterna."                               │ │
+  │  │                                                          │ │
+  │  │[TAP PARA RESALTAR PALABRAS]                             │ │
+  │  └──────────────────────────────────────────────────────────┘ │
+  │  ¿Qué me dice Dios hoy?                                      │
+  │  ┌──────────────────────────────────────────────────────────┐ │
+  │  │[Campo de reflexión del usuario]                        │ │
+  │  └──────────────────────────────────────────────────────────┘ │
+  │  ✨ Lectura del Día                                          │
+  │  Evangelio de Juan (3, 31-36)                               │
+  └────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ⚡ OPTIMIZACIONES IMPLEMENTADAS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. CARGA ÚNICA DE DATOS
+   └─ FlashbackScreen carga el Gospel una vez
+   └─ Lo pasa a ReadingScreen sin hacer segundo fetch
+   └─ Reduce consumo de datos y tiempo
+
+2. FALLBACK A MOCK DATA
+   └─ ReadingScreen inicialmente muestra mock_data
+   └─ Si API falla, usuario no ve pantalla rota
+   └─ Error es manejable con botón Reintentar
+
+3. TIMEOUT CONFIGURABLE
+   └─ 10 segundos máximo para respuesta
+   └─ Si no hay respuesta → Error explicativo
+   └─ Evita que la app se cuelgue
+
+4. CACHÉ IMPLÍCITO
+   └─ Los datos en memory mientras la app está abierta
+   └─ FutureBuilder los mantiene hasta destruir widget
+   └─ Para caché persistente → usar SharedPreferences (futuro)
+
+5. MANEJO GRACEFUL DE ERRORES
+   └─ Usuarios ven UI con error, no crash
+   └─ Botón para reintentar
+   └─ Mensajes claros en español
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          🔐 SEGURIDAD Y VALIDACIONES
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ VALIDACIONES IMPLEMENTADAS:
+
+  1. Timeout (10 segundos)
+     └─ Evita peticiones eternas
+
+  2. Status Code Check
+     └─ Verifica que respuesta sea 200
+     └─ Maneja otros códigos como error
+
+  3. XML Parsing Seguro
+     └─ Try-catch en parseGospelFromRss()
+     └─ Fallback si estructura es diferente
+
+  4. Campos Opcionales
+     └─ Todos los campos tienen fallback
+     └─ Si falta algo → usa valor por defecto
+
+  5. HTML Sanitization
+     └─ Remove HTML tags con regex
+     └─ Convierte entidades HTML (&nbsp; → espacio)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          📊 ESTADÍSTICAS DEL CÓDIGO
+═══════════════════════════════════════════════════════════════════════════════
+
+Líneas Nuevas:           ~520 líneas
+  ├─ gospel_data.dart:          80 líneas
+  ├─ evangelio_service.dart:    120 líneas
+  └─ reading_screen.dart:       280 líneas (reescrito)
+
+Modificaciones:          ~150 líneas
+  ├─ pubspec.yaml:              +5 dependencias
+  ├─ flashback_screen.dart:     +50 líneas
+  └─ main_navigation.dart:      sin cambios
+
+Dependencias Nuevas:     4
+  ├─ http
+  ├─ intl
+  ├─ provider
+  └─ xml
+
+Clases Nuevas:          2
+  ├─ GospelData
+  └─ EvangelioService
+
+Métodos de Servicio:    3
+  ├─ fetchDailyGospel()
+  ├─ _parseGospelFromRss()
+  └─ _extractLiturgicalTitle()
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          ✅ VALIDACIÓN FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Sin errores de compilación
+✅ Sin warnings críticos
+✅ API funcionando correctamente
+✅ Manejo de errores implementado
+✅ Loading states visibles
+✅ Timeout configurado
+✅ Datos parseados correctamente
+✅ Navegación entre pantallas funciona
+✅ Gospel se pasa correctamente
+✅ Firebase pronto para almacenar Gospel+Reflexión
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          🚀 PRÓXIMOS PASOS
+═══════════════════════════════════════════════════════════════════════════════
+
+INMEDIATO:
+  1. ✅ API de Evangeli.net integrada
+  2. ⏳ Implementar botón "Guardar Reflexión"
+  3. ⏳ Guardar Gospel + Reflexión en Firebase
+  4. ⏳ Implementar búsqueda por reference (para Flashback histórico)
+
+CORTO PLAZO:
+  5. ⏳ Caché local con SharedPreferences
+  6. ⏳ Sincronización automática en background
+  7. ⏳ Notificaciones de recordatorio diario
+
+MEDIANO PLAZO:
+  8. ⏳ Análisis de temas (IA)
+  9. ⏳ Exportar a PDF
+  10. ⏳ Compartir reflexiones
+
+LARGO PLAZO:
+  11. ⏳ Recomendaciones personalizadas
+  12. ⏳ Integración con aplicaciones de Biblia
+  13. ⏳ Sincronización multiplataforma
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                    💾 CÓMO GUARDAR REFLEXIÓN A FIREBASE
+═══════════════════════════════════════════════════════════════════════════════
+
+Cuando implementes guardar, seguirá esta estructura:
+
+```dart
+// En ReadingScreen, agregar botón Guardar:
+
+ElevatedButton(
+  onPressed: () async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('reflections')
+          .add({
+            'date': DateTime.now().toIso8601String(),
+            'reference': gospel.reference,           // ← Del API
+            'evangelium_text': gospel.evangeliumText, // ← Del API
+            'priest_comment': gospel.priestComment,  // ← Del API
+            'user_reflection': _responseController.text,
+            'title': gospel.title,                   // ← Del API
+            'tags': selectedTags,
+            'word_count': _responseController.text.split(' ').length,
+            'created_at': FieldValue.serverTimestamp(),
+          });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reflexión guardada ✓')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al guardar: $e')),
+      );
+    }
+  },
+  child: const Text('Guardar Reflexión'),
+)
+```
+
+La clave "reference" permite luego buscar todas las reflexiones del mismo pasaje.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                      🎉 ¡INTEGRACIÓN COMPLETADA! 🎉
+
+         Tu app ahora está conectada a datos en vivo de Evangeli.net
+
+         Cada usuario verá el Evangelio del día real según su zona horaria
+
+═══════════════════════════════════════════════════════════════════════════════

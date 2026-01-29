@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "935142790598",
+    "project_id": "diario-espiritual-642d0",
+    "storage_bucket": "diario-espiritual-642d0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:935142790598:android:64712904073ab6da0d4ec7",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCidJZNGqD0GoiZMj25xcS5SiAf5QxC0ng"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

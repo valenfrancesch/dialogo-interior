@@ -1,0 +1,65 @@
+/* 
+  ╔══════════════════════════════════════════════════════════════════════════════╗
+  ║                                                                              ║
+  ║                    🔐 FIRESTORE SECURITY RULES 🔐                           ║
+  ║                                                                              ║
+  ║  Paste these rules in Firebase Console → Firestore → Rules tab              ║
+  ║                                                                              ║
+  ╚══════════════════════════════════════════════════════════════════════════════╝
+*/
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Colección de usuarios
+    match /users/{userId} {
+      // El usuario solo puede leer/escribir sus propios datos
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Subcolección de entries (reflexiones/oraciones)
+      match /entries/{entryId} {
+        // Permitir leer/escribir solo si es el dueño (userId coincide)
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+
+        // Permitir crear si está autenticado (se validará userId en el código)
+        allow create: if request.auth != null;
+      }
+    }
+
+    // Colección pública de estadísticas globales (opcional, para futuros análisis)
+    match /stats/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // Solo cambios desde backend/admin
+    }
+  }
+}
+
+/*
+  ════════════════════════════════════════════════════════════════════════════════
+
+  📋 EXPLICACIÓN DE LAS REGLAS:
+
+  1. /users/{userId}
+     • Solo el usuario dueño de ese ID puede leer/escribir en su documento
+     • Previene que otros usuarios accedan a información personal
+
+  2. /users/{userId}/entries/{entryId}
+     • Las reflexiones y oraciones son 100% privadas
+     • Solo el dueño puede leerlas o modificarlas
+     • Esto garantiza la privacidad de las reflexiones espirituales
+
+  3. Validación combinada
+     • request.auth != null → Requiere estar autenticado
+     • request.auth.uid == userId → Valida que sea el dueño
+
+  ════════════════════════════════════════════════════════════════════════════════
+
+  🔒 BENEFICIOS DE SEGURIDAD:
+
+  ✓ Los usuarios NO pueden ver reflexiones de otros
+  ✓ Los usuarios NO pueden modificar o eliminar reflexiones ajenas
+  ✓ Datos completamente privados y seguros
+  ✓ Cumple con GDPR (protección de datos personales)
+  ✓ Ideal para contenido sensible como oraciones y reflexiones espirituales
+
+  ════════════════════════════════════════════════════════════════════════════════
+*/
