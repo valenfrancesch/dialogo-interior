@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -10,21 +11,28 @@ class PrivacyPolicyScreen extends StatelessWidget {
     final headerStyle = GoogleFonts.inter(
       fontSize: 18,
       fontWeight: FontWeight.bold,
-      color: const Color(0xFF00FFAB), // Tu verde menta
+      color: AppTheme.accentMint, // Sacred Red
     );
 
     final bodyStyle = GoogleFonts.inter(
       fontSize: 14,
-      color: Colors.white70,
+      color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
       height: 1.6,
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Fondo oscuro
+      backgroundColor: AppTheme.sacredCream, // Updated background
       appBar: AppBar(
-        title: Text('Privacidad y Términos', style: GoogleFonts.inter()),
+        title: Text(
+          'Privacidad y Términos', 
+          style: GoogleFonts.inter(
+            color: AppTheme.sacredDark, 
+            fontWeight: FontWeight.bold
+          )
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: const IconThemeData(color: AppTheme.accentMint),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -34,7 +42,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             Center(
               child: Column(
                 children: [
-                  const Icon(Icons.shield_outlined, size: 60, color: Color(0xFF00FFAB)),
+                   Icon(Icons.shield_outlined, size: 60, color: AppTheme.accentMint),
                   const SizedBox(height: 10),
                   Text(
                     "Tu intimidad espiritual es sagrada",
@@ -74,7 +82,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             Center(
               child: Text(
                 "Última actualización: Enero 2026",
-                style: bodyStyle.copyWith(fontSize: 12),
+                style: bodyStyle.copyWith(fontSize: 12, color: AppTheme.sacredDark.withOpacity(0.5)),
               ),
             ),
             const SizedBox(height: 20),

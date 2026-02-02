@@ -22,14 +22,14 @@ class CalendarDay extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: hasEntry ? AppTheme.accentMint.withOpacity(0.2) : Colors.transparent,
+          color: hasEntry ? AppTheme.accentMint.withOpacity(0.15) : Colors.transparent, // Visible bg
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isToday
                 ? AppTheme.accentMint
                 : (hasEntry
                     ? AppTheme.accentMint.withOpacity(0.5)
-                    : Colors.white10),
+                    : AppTheme.sacredGold.withOpacity(0.3)), // Visible border
             width: isToday ? 2 : 1,
           ),
         ),
@@ -42,7 +42,7 @@ class CalendarDay extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: hasEntry ? AppTheme.accentMint : Colors.white70,
+                  color: hasEntry ? AppTheme.accentMint : AppTheme.sacredDark.withOpacity(0.7), // Visible text
                 ),
               ),
               if (hasEntry)

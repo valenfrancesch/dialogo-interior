@@ -28,10 +28,10 @@ class DiaryEntryCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark,
+          color: AppTheme.cardDark, // Mapped to Colors.white
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white10,
+            color: AppTheme.sacredGold.withOpacity(0.3), // Visible border
             width: 1,
           ),
         ),
@@ -47,7 +47,7 @@ class DiaryEntryCard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    color: Colors.white60,
+                    color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
                   ),
                 ),
                 Text(
@@ -68,7 +68,7 @@ class DiaryEntryCard extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: AppTheme.sacredDark, // Visible title
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -81,7 +81,7 @@ class DiaryEntryCard extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
-                color: Colors.white70,
+                color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
                 height: 1.5,
               ),
               maxLines: 2,

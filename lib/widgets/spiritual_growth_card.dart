@@ -20,9 +20,9 @@ class SpiritualGrowthCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark,
+          color: AppTheme.cardDark, // Mapped to Colors.white
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10, width: 1),
+          border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3), width: 1), // Visible border
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +52,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                         style: GoogleFonts.montserrat(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white60,
+                          color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -61,7 +61,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppTheme.sacredDark, // Visible title
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -110,7 +110,7 @@ class SpiritualGrowthCard extends StatelessWidget {
             // Sección de historiales (flashbacks)
             if (insight.historicalEntries.isNotEmpty) ...[
               Divider(
-                color: Colors.white10,
+                color: AppTheme.sacredGold.withOpacity(0.2), // Visible divider
                 height: 24,
                 thickness: 1,
               ),
@@ -119,7 +119,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white60,
+                  color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
                   letterSpacing: 0.5,
                 ),
               ),
@@ -156,9 +156,9 @@ class SpiritualGrowthCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.black26,
+        color: AppTheme.sacredCream, // Distinct background for blocks
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white10, width: 0.5),
+        border: Border.all(color: AppTheme.sacredGold.withOpacity(0.2), width: 0.5), // Visible border
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -181,7 +181,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white,
+                  color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -193,7 +193,7 @@ class SpiritualGrowthCard extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               fontSize: 10,
-              color: Colors.white60,
+              color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
             ),
             textAlign: TextAlign.center,
           ),
@@ -245,7 +245,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                   _formatDate(entry.date),
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: Colors.white60,
+                    color: AppTheme.sacredDark.withOpacity(0.6), // Visible text
                   ),
                 ),
               ),
@@ -258,7 +258,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                 : entry.reflection,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: Colors.white70,
+              color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
               height: 1.4,
             ),
           ),
@@ -272,14 +272,15 @@ class SpiritualGrowthCard extends StatelessWidget {
                     (tag) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white10,
+                        color: Colors.white.withOpacity(0.5), // Updated tag bg
                         borderRadius: BorderRadius.circular(3),
+                        border: Border.all(color: Colors.black12),
                       ),
                       child: Text(
                         tag,
                         style: GoogleFonts.inter(
                           fontSize: 9,
-                          color: Colors.white60,
+                          color: AppTheme.sacredDark.withOpacity(0.6), // Visible text
                         ),
                       ),
                     ),

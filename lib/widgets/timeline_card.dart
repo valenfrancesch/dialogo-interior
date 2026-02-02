@@ -47,10 +47,10 @@ class _TimelineCardState extends State<TimelineCard> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: AppTheme.accentMint,
+                    color: AppTheme.accentMint, // Keep this, it's mapped to sacredRed
                     width: 2,
                   ),
-                  color: AppTheme.cardDark,
+                  color: Colors.white, // Updated to white for contrast
                 ),
                 child: const Icon(
                   Icons.history,
@@ -61,7 +61,7 @@ class _TimelineCardState extends State<TimelineCard> {
               Container(
                 width: 2,
                 height: 60,
-                color: Colors.white10,
+                color: AppTheme.sacredGold.withOpacity(0.3), // Updated timeline line color
               ),
             ],
           ),
@@ -70,10 +70,10 @@ class _TimelineCardState extends State<TimelineCard> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: AppTheme.cardDark,
+                color: AppTheme.cardDark, // Mapped to Colors.white
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.white10,
+                  color: AppTheme.sacredGold.withOpacity(0.3), // Updated border color
                   width: 1,
                 ),
               ),
@@ -106,7 +106,7 @@ class _TimelineCardState extends State<TimelineCard> {
                                   style: GoogleFonts.inter(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.white.withOpacity(0.87),
+                                    color: AppTheme.sacredDark, // Fixed color
                                   ),
                                 ),
                               ],
@@ -118,10 +118,10 @@ class _TimelineCardState extends State<TimelineCard> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFFB800).withOpacity(0.15),
+                                  color: AppTheme.sacredGold.withOpacity(0.15), // Updated badge bg
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(0xFFFFB800),
+                                    color: AppTheme.sacredGold,
                                     width: 1,
                                   ),
                                 ),
@@ -130,7 +130,7 @@ class _TimelineCardState extends State<TimelineCard> {
                                   style: GoogleFonts.montserrat(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: const Color(0xFFFFB800),
+                                    color: AppTheme.sacredGold, // Updated text color
                                   ),
                                 ),
                               ),
@@ -142,7 +142,7 @@ class _TimelineCardState extends State<TimelineCard> {
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
-                            color: Colors.white30,
+                            color: AppTheme.sacredDark.withOpacity(0.5), // Fixed color
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -152,7 +152,7 @@ class _TimelineCardState extends State<TimelineCard> {
                   // Divider
                   Container(
                     height: 1,
-                    color: Colors.white10,
+                    color: AppTheme.sacredGold.withOpacity(0.2), // Updated divider color
                   ),
                   // Summary
                   Padding(
@@ -165,7 +165,7 @@ class _TimelineCardState extends State<TimelineCard> {
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
-                            color: Colors.white.withOpacity(0.87),
+                            color: AppTheme.sacredDark.withOpacity(0.9), // Fixed color
                             height: 1.6,
                           ),
                           maxLines: _isExpanded ? null : 2,
@@ -191,7 +191,7 @@ class _TimelineCardState extends State<TimelineCard> {
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w400,
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: AppTheme.sacredDark.withOpacity(0.8), // Fixed color
                                   height: 1.6,
                                 ),
                               ),
@@ -201,14 +201,14 @@ class _TimelineCardState extends State<TimelineCard> {
                                   Icon(
                                     Icons.info_outline,
                                     size: 14,
-                                    color: Colors.white30,
+                                    color: AppTheme.sacredDark.withOpacity(0.4), // Fixed color
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
                                     '${widget.wordCount} palabras',
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
-                                      color: Colors.white30,
+                                      color: AppTheme.sacredDark.withOpacity(0.4), // Fixed color
                                     ),
                                   ),
                                 ],

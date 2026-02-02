@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart'; // Added for date formatting
+// Added for date formatting
 import '../theme/app_theme.dart';
 import '../widgets/statistics_card.dart';
 import '../widgets/diary_entry_card.dart';
@@ -37,6 +37,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   // Cached futures to prevent reloading on setState
   late Future<List<dynamic>> _statsFuture;
   late Future<SpiritualGrowthInsight?> _growthFuture;
+
+  final GlobalKey _diarySectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -150,7 +152,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkBg,
+      backgroundColor: AppTheme.sacredCream, // Updated background
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -160,6 +162,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 24,
             fontWeight: FontWeight.bold,
+            color: AppTheme.sacredRed, // Updated title color
           ),
         ),
       ),
@@ -223,9 +226,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
+        color: AppTheme.cardDark, // Mapped to Colors.white
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10, width: 1),
+        border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3), width: 1), // Updated border
       ),
       child: TextField(
         controller: _searchController,
@@ -233,7 +236,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           hintText: 'Buscar reflexiones...',
           hintStyle: GoogleFonts.inter(
             fontSize: 14,
-            color: Colors.white38,
+            color: AppTheme.sacredDark.withOpacity(0.4), // Updated hint color
           ),
           prefixIcon: Icon(Icons.search, color: AppTheme.accentMint),
           border: InputBorder.none,
@@ -241,7 +244,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
         style: GoogleFonts.inter(
           fontSize: 14,
-          color: Colors.white,
+          color: AppTheme.sacredDark, // Updated text color
         ),
       ),
     );
@@ -256,7 +259,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: AppTheme.sacredDark, // Updated text color
           ),
         ),
         Text(
@@ -264,7 +267,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AppTheme.accentMint,
+            color: AppTheme.sacredRed, // Updated accent color
             letterSpacing: 0.5,
           ),
         ),
@@ -328,27 +331,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
         final streakData = data[0];
         final reflectionData = data[1];
 
-        return Row(
-          children: [
-            Expanded(
-              child: StatisticsCard(
-                icon: Icons.local_fire_department,
-                label: 'Racha Actual',
-                mainValue: '${streakData.daysStreak} días',
-                secondaryValue: '+${streakData.percentageVsLastMonth.toStringAsFixed(1)}% vs mes anterior',
+          return Row(
+            children: [
+              Expanded(
+                child: StatisticsCard(
+                  icon: Icons.local_fire_department,
+                  label: 'Racha Actual',
+                  mainValue: '${streakData.daysStreak} días',
+                  secondaryValue: '+${streakData.percentageVsLastMonth.toStringAsFixed(1)}% vs mes anterior',
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: StatisticsCard(
-                icon: Icons.book,
-                label: 'Reflexiones',
-                mainValue: reflectionData.thisMonthCount.toString(),
-                secondaryValue: '+${reflectionData.percentageGrowth.toStringAsFixed(1)}% este mes',
+              const SizedBox(width: 12),
+              Expanded(
+                child: StatisticsCard(
+                  icon: Icons.book,
+                  label: 'Reflexiones',
+                  mainValue: reflectionData.thisMonthCount.toString(),
+                  secondaryValue: '+${reflectionData.percentageGrowth.toStringAsFixed(1)}% este mes',
+                  onTap: () {
+                    Scrollable.ensureVisible(
+                      _diarySectionKey.currentContext!,
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        );
+            ],
+          );
       },
     );
   }
@@ -365,7 +375,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               style: GoogleFonts.montserrat(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: AppTheme.sacredDark, // Updated text color
               ),
             ),
             Row(
@@ -401,7 +411,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white60,
+                      color: AppTheme.sacredDark.withOpacity(0.6), // Updated text color
                     ),
                   ),
                 ),
@@ -418,17 +428,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: 42,
           itemBuilder: (context, index) {
-            // Calculate day offset based on the first day of the month
-            // Note: simple calculation assuming grid starts at correct offset
-            // Ideally we need to know what day of week the 1st falls on
             
             final firstDayOfMonth = DateTime(_displayedMonth.year, _displayedMonth.month, 1);
             final firstWeekday = firstDayOfMonth.weekday; // 1 = Mon, 7 = Sun
-            // Our grid starts with Monday (L). 
-            // If 1st is Monday (1), offset SHOULD be 0. 
-            // If 1st is Tuesday (2), offset SHOULD be 1.
-            // Formula: index - (weekday - 1) + 1
-            
+       
             int day = index - (firstWeekday - 1) + 1;
             int daysInMonth = DateUtils.getDaysInMonth(_displayedMonth.year, _displayedMonth.month);
             
@@ -454,10 +457,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildSpiritualGrowthSection() {
-    // Para esta versión inicial, usamos un pasaje de ejemplo
-    // En una versión posterior, esto será dinámico basado en el evangelio actual
-    // const exampleGospelQuote = 'Juan 3:16-21'; // Moved to _initFutures
-
     return FutureBuilder<SpiritualGrowthInsight?>(
       future: _growthFuture,
       builder: (context, snapshot) {
@@ -468,7 +467,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             decoration: BoxDecoration(
               color: AppTheme.cardDark,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white10, width: 1),
+              border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3), width: 1), // Updated border
             ),
             child: const Center(
               child: CircularProgressIndicator(
@@ -552,7 +551,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               style: GoogleFonts.montserrat(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: AppTheme.sacredDark, // Updated text color
               ),
             ),
             GestureDetector(
@@ -577,7 +576,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             if (_availableTags.isEmpty)
               Text(
                 'No hay etiquetas registradas',
-                style: GoogleFonts.inter(fontSize: 13, color: Colors.white38),
+                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.sacredDark.withOpacity(0.4)), // Updated text color
               ),
             ..._availableTags.map(
               (tag) => GestureDetector(
@@ -591,12 +590,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   decoration: BoxDecoration(
                     color: _selectedTag == tag
                         ? AppTheme.accentMint.withOpacity(0.2)
-                        : AppTheme.surfaceDark,
+                        : Colors.white, // Updated card color
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: _selectedTag == tag
                           ? AppTheme.accentMint
-                          : Colors.white24,
+                          : AppTheme.sacredGold.withOpacity(0.3), // Updated border color
                       width: _selectedTag == tag ? 2 : 1,
                     ),
                   ),
@@ -607,7 +606,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       fontWeight: FontWeight.w500,
                       color: _selectedTag == tag
                           ? AppTheme.accentMint
-                          : Colors.white70,
+                          : AppTheme.sacredDark, // Updated text color
                       ),
                   ),
                 ),
@@ -621,6 +620,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _buildDiarySection() {
     return Column(
+      key: _diarySectionKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -628,7 +628,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: AppTheme.sacredDark, // Updated text color
           ),
         ),
         const SizedBox(height: 12),
@@ -639,7 +639,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Text(
               'No hay reflexiones aún.',
-              style: GoogleFonts.inter(color: Colors.white38),
+              style: GoogleFonts.inter(color: AppTheme.sacredDark.withOpacity(0.4)), // Updated text color
             ),
           )
         else

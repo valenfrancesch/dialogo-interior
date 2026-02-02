@@ -28,22 +28,33 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
   }
 
   @override
+  void didUpdateWidget(TextSegmentToggle oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIndex != oldWidget.initialIndex) {
+      _selectedIndex = widget.initialIndex;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white12,
-          width: 1,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, // Updated for better contrast on cream bg
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.sacredGold.withOpacity(0.3), // Visible border
+            width: 1,
+          ),
         ),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: List.generate(
-          widget.segments.length,
-          (index) => Expanded(
-            child: GestureDetector(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(
+            widget.segments.length,
+            (index) => GestureDetector(
               onTap: () {
                 setState(() {
                   _selectedIndex = index;
@@ -51,10 +62,11 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
                 widget.onChanged(index);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                margin: const EdgeInsets.only(right: 4), // Small gap
                 decoration: BoxDecoration(
                   color: _selectedIndex == index
-                      ? AppTheme.accentMint.withOpacity(0.2)
+                      ? AppTheme.accentMint.withOpacity(0.15)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: _selectedIndex == index
@@ -68,11 +80,11 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
                 child: Text(
                   widget.segments[index],
                   style: GoogleFonts.montserrat(
-                    fontSize: 14,
+                    fontSize: 13, // Slightly smaller to fit better
                     fontWeight: FontWeight.w600,
                     color: _selectedIndex == index
                         ? AppTheme.accentMint
-                        : Colors.white60,
+                        : AppTheme.sacredDark.withOpacity(0.6), // Visible unselected text
                   ),
                 ),
               ),

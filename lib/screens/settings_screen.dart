@@ -13,15 +13,22 @@ class SettingsScreen extends StatelessWidget {
     final headerStyle = GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.bold,
-      color: const Color(0xFF00FFAB), // Verde menta
+      color: AppTheme.accentMint, // Sacred Red
     );
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkBg,
+      backgroundColor: AppTheme.primaryDarkBg, // Mapped to Sacred Cream
       appBar: AppBar(
-        title: Text('Ajustes', style: GoogleFonts.inter()),
+        title: Text(
+          'Ajustes', 
+          style: GoogleFonts.inter(
+            color: AppTheme.sacredDark, // Visible title
+            fontWeight: FontWeight.bold
+          )
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: const IconThemeData(color: AppTheme.accentMint),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -38,7 +45,7 @@ class SettingsScreen extends StatelessWidget {
                 // TODO: Implementar edición de perfil si es necesario
               },
             ),
-            const Divider(color: Colors.white10),
+            Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
             const SizedBox(height: 20),
             
             Text('Más información', style: headerStyle),
@@ -60,20 +67,21 @@ class SettingsScreen extends StatelessWidget {
                 _showSupportDialog(context);
               },
             ),
-            const Divider(color: Colors.white10),
+            Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
             const SizedBox(height: 30),
             
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent.withOpacity(0.2),
-                  foregroundColor: Colors.redAccent,
-                  side: const BorderSide(color: Colors.redAccent),
+                  backgroundColor: AppTheme.sacredRed.withOpacity(0.1),
+                  foregroundColor: AppTheme.sacredRed,
+                  side: const BorderSide(color: AppTheme.sacredRed),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 0,
                 ),
                 onPressed: () => _handleLogout(context),
                 icon: const Icon(Icons.logout),
@@ -86,7 +94,7 @@ class SettingsScreen extends StatelessWidget {
               width: double.infinity,
               child: TextButton.icon(
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.white24,
+                  foregroundColor: AppTheme.sacredDark.withOpacity(0.5),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 onPressed: () => _handleDeleteAccount(context),
@@ -95,10 +103,10 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 40),
-            const Center(
+            Center(
               child: Text(
                 'Diálogo Interior v1.0.0',
-                style: TextStyle(color: Colors.white24, fontSize: 12),
+                style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.4), fontSize: 12),
               ),
             ),
           ],
@@ -118,14 +126,14 @@ class SettingsScreen extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: AppTheme.accentMint.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: Colors.white70),
+        child: Icon(icon, color: AppTheme.accentMint),
       ),
-      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)) : null,
-      trailing: const Icon(Icons.chevron_right, color: Colors.white24),
+      title: Text(title, style: const TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.w500)),
+      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.6), fontSize: 12)) : null,
+      trailing: Icon(Icons.chevron_right, color: AppTheme.sacredDark.withOpacity(0.3)),
       onTap: onTap,
     );
   }
@@ -137,17 +145,18 @@ class SettingsScreen extends StatelessWidget {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.white)),
-        content: const Text('¿Estás seguro de que quieres cerrar sesión?', style: TextStyle(color: Colors.white70)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        title: const Text('Cerrar Sesión', style: TextStyle(color: AppTheme.sacredDark)),
+        content: const Text('¿Estás seguro de que quieres cerrar sesión?', style: TextStyle(color: AppTheme.sacredDark)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: AppTheme.sacredDark)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cerrar Sesión', style: TextStyle(color: Colors.redAccent)),
+            child: const Text('Cerrar Sesión', style: TextStyle(color: AppTheme.sacredRed)),
           ),
         ],
       ),
@@ -169,20 +178,21 @@ class SettingsScreen extends StatelessWidget {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: const Text('Eliminar Cuenta', style: TextStyle(color: Colors.redAccent)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        title: const Text('Eliminar Cuenta', style: TextStyle(color: AppTheme.sacredRed)),
         content: const Text(
           'Esta acción es IRREVERSIBLE. Se borrarán todas tus reflexiones, estadísticas y tu perfil permanentemente.\n\n¿Estás completamente seguro?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppTheme.sacredDark),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: AppTheme.sacredDark)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('SÍ, BORRAR TODO', style: TextStyle(color: Colors.redAccent)),
+            child: const Text('SÍ, BORRAR TODO', style: TextStyle(color: AppTheme.sacredRed)),
           ),
         ],
       ),
@@ -214,22 +224,23 @@ class SettingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: const Text('Soporte', style: TextStyle(color: Colors.white)),
-        content: const Column(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        title: const Text('Soporte', style: TextStyle(color: AppTheme.sacredDark)),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿Necesitas ayuda or tienes alguna sugerencia?', style: TextStyle(color: Colors.white70)),
-            SizedBox(height: 16),
-            Text('Escríbenos a:', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
-            Text('dialogo.interior.app@gmail.com', style: TextStyle(color: Color(0xFF00FFAB))),
+            const Text('¿Necesitas ayuda or tienes alguna sugerencia?', style: TextStyle(color: AppTheme.sacredDark)),
+            const SizedBox(height: 16),
+            const Text('Escríbenos a:', style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.bold)),
+            Text('dialogo.interior.app@gmail.com', style: TextStyle(color: AppTheme.accentMint)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: const Text('Cerrar', style: TextStyle(color: AppTheme.sacredDark)),
           ),
         ],
       ),

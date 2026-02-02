@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../screens/reading_screen.dart';
 import '../screens/library_screen.dart';
-import '../screens/auth_screen.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
-import '../providers/auth_provider.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});

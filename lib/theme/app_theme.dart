@@ -2,135 +2,121 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryDarkBg = Color(0xFF121212);
-  static const Color accentMint = Color(0xFF64FFDA);
-  static const Color accentPurple = Color(0xFF7C3AED);
-  static const Color accentBlue = Color(0xFF3B82F6);
-  static const Color cardDark = Color(0xFF1E1E1E);
-  static const Color surfaceDark = Color(0xFF2C2C2C);
+  // Sacred Palette
+  static const Color sacredCream = Color(0xFFF9F6F0);
+  static const Color sacredRed = Color(0xFF8B0000);
+  static const Color sacredGold = Color(0xFFC5A059);
+  static const Color sacredGoldLight = Color(0xFFE5D1A0);
+  static const Color sacredDark = Color(0xFF2C1810);
 
-  static ThemeData darkTheme() {
+  // Legacy mappings for compatibility
+  static const Color primaryDarkBg = sacredCream; // Was Dark, now Light/Cream
+  static const Color accentMint = sacredRed;      // High contrast accent
+  static const Color accentPurple = sacredGold;   // Secondary accent
+  static const Color accentBlue = sacredGoldLight;// Tertiary accent
+  static const Color cardDark = Colors.white;     // Cards are white on cream
+  static const Color surfaceDark = sacredCream;   // Surface matches bg
+
+  static ThemeData lightTheme() {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: primaryDarkBg,
-      primaryColor: accentMint,
-      colorScheme: ColorScheme.dark(
-        primary: accentMint,
-        secondary: accentPurple,
-        tertiary: accentBlue,
-        surface: cardDark,
-        surfaceContainerHighest: surfaceDark,
-        error: Colors.red.shade600,
-        onPrimary: primaryDarkBg,
-        onSecondary: Colors.white,
-        onSurface: Colors.white.withOpacity(0.70),
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: sacredCream,
+      primaryColor: sacredRed,
+      colorScheme: ColorScheme.light(
+        primary: sacredRed,
+        secondary: sacredGold,
+        tertiary: sacredGoldLight,
+        surface: Colors.white,
+        onPrimary: Colors.white,
+        onSecondary: sacredDark,
+        onSurface: sacredDark.withOpacity(0.9),
+        background: sacredCream,
+        onBackground: sacredDark,
       ),
       textTheme: _buildTextTheme(),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
         titleTextStyle: GoogleFonts.montserrat(
-          fontSize: 24,
+          fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: sacredRed, // Red title
         ),
+        iconTheme: const IconThemeData(color: sacredRed),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: cardDark,
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: sacredGold.withOpacity(0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: sacredGold.withOpacity(0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: accentMint, width: 2),
+          borderSide: const BorderSide(color: sacredRed, width: 2),
         ),
         hintStyle: GoogleFonts.inter(
           fontSize: 16,
-          color: Colors.white38,
-        ),
-      ),
-      chipTheme: ChipThemeData(
-        backgroundColor: surfaceDark,
-        selectedColor: accentMint,
-        labelStyle: GoogleFonts.inter(
-          fontSize: 14,
-          color: Colors.white,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide.none,
+          color: sacredDark.withOpacity(0.4),
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: accentMint,
-        foregroundColor: primaryDarkBg,
+        backgroundColor: sacredRed,
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: cardDark,
-        selectedItemColor: accentMint,
-        unselectedItemColor: Colors.white38,
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: sacredRed,
+        unselectedItemColor: sacredGold,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: sacredRed,
+        unselectedLabelColor: sacredGold,
+        indicatorColor: sacredRed,
+      ),
     );
   }
+
+  // Keep this for now to match main.dart call, but return the light theme
+  static ThemeData darkTheme() => lightTheme();
 
   static TextTheme _buildTextTheme() {
     return TextTheme(
       displayLarge: GoogleFonts.montserrat(
         fontSize: 32,
         fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-      displayMedium: GoogleFonts.montserrat(
-        fontSize: 28,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-      headlineSmall: GoogleFonts.montserrat(
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
+        color: sacredRed,
       ),
       titleLarge: GoogleFonts.montserrat(
         fontSize: 20,
         fontWeight: FontWeight.w600,
-        color: Colors.white,
-      ),
-      titleMedium: GoogleFonts.montserrat(
-        fontSize: 18,
-        fontWeight: FontWeight.w500,
-        color: Colors.white.withOpacity(0.87),
+        color: sacredDark,
       ),
       bodyLarge: GoogleFonts.inter(
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: FontWeight.w400,
-        color: Colors.white.withOpacity(0.87),
+        color: sacredDark.withOpacity(0.9),
+        height: 1.6,
       ),
       bodyMedium: GoogleFonts.inter(
         fontSize: 14,
-        fontWeight: FontWeight.w400,
-        color: Colors.white.withOpacity(0.70),
-      ),
-      bodySmall: GoogleFonts.inter(
-        fontSize: 12,
-        fontWeight: FontWeight.w400,
-        color: Colors.white.withOpacity(0.60),
+        color: sacredDark.withOpacity(0.8),
       ),
       labelLarge: GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: Colors.white,
+        color: sacredRed,
       ),
     );
   }

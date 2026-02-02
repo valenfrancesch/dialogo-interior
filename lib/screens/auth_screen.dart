@@ -292,7 +292,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 // Country Dropdown (only for registration)
                 if (!_isLoginMode)
                   DropdownButtonFormField<String>(
-                    value: _selectedCountry,
+                    initialValue: _selectedCountry,
                     decoration: InputDecoration(
                       labelText: 'País',
                       prefixIcon: const Icon(Icons.public),
@@ -313,7 +313,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 // Province Dropdown (only for registration and if provinces available)
                 if (!_isLoginMode && _availableProvinces.isNotEmpty)
                   DropdownButtonFormField<String>(
-                    value: _selectedProvince,
+                    initialValue: _selectedProvince,
                     decoration: InputDecoration(
                       labelText: 'Provincia/Estado',
                       prefixIcon: const Icon(Icons.location_city),
