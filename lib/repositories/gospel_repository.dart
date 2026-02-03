@@ -109,7 +109,7 @@ class GospelRepository {
     try {
       final response = await http.get(
         Uri.parse(
-          '$_baseUrl?date=$dateStr&lang=SP&type=feast',
+          '$_baseUrl?date=$dateStr&lang=SP&type=liturgic_t',
         ),
         headers: {
           'User-Agent': 'Criptex-Spirit/1.0',

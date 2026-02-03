@@ -47,7 +47,10 @@ class _ReadingScreenState extends State<ReadingScreen> {
           } else if (snapshot.hasError) {
             return _buildErrorState(snapshot.error.toString());
           } else if (snapshot.hasData) {
-            return _ReadingContent(gospel: snapshot.data!);
+            return _ReadingContent(
+              gospel: snapshot.data!,
+              showBackButton: widget.gospel != null,
+            );
           }
           return _buildErrorState('Estado desconocido');
         },
@@ -136,8 +139,12 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
 class _ReadingContent extends StatefulWidget {
   final GospelData gospel;
+  final bool showBackButton;
 
-  const _ReadingContent({required this.gospel});
+  const _ReadingContent({
+    required this.gospel,
+    this.showBackButton = false,
+  });
 
   @override
   State<_ReadingContent> createState() => _ReadingContentState();
@@ -273,13 +280,15 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     } catch (e) {
       if (mounted) {
         await Clipboard.setData(ClipboardData(text: shareText.toString()));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✓ Texto copiado al portapapeles'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Texto copiado al portapapeles'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     }
   }
@@ -342,12 +351,22 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   Widget _buildHeader() {
     String dateStr = _formatDate(widget.gospel.date);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 44, 16, 0),
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       color: AppTheme.primaryDarkBg,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          if (widget.showBackButton)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios, color: AppTheme.accentMint, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          if (widget.showBackButton)
+            const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +402,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   // Helper for consistent card styling
@@ -573,9 +593,20 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
              const SizedBox(height: 8),
              if (_highlightedText.isNotEmpty)
                Container(
-                 padding: const EdgeInsets.all(12),
-                 decoration: BoxDecoration(color: AppTheme.accentMint.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.accentMint.withOpacity(0.3))),
-                 child: Text(_highlightedText, style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark.withOpacity(0.9), fontStyle: FontStyle.italic)), // Fixed color
+                 padding: const EdgeInsets.all(16),
+                 decoration: BoxDecoration(
+                   color: AppTheme.sacredGold.withOpacity(0.15),
+                   borderRadius: BorderRadius.circular(12),
+                   border: Border(left: BorderSide(color: AppTheme.sacredGold, width: 4)),
+                 ),
+                 child: Text(
+                   '"$_highlightedText"',
+                   style: GoogleFonts.merriweather(
+                     fontStyle: FontStyle.italic,
+                     fontSize: 14,
+                     color: AppTheme.sacredDark.withOpacity(0.8),
+                   ),
+                 ),
                )
              else
                Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text('Mantén presionado sobre el texto para destacar.', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.sacredDark.withOpacity(0.4), fontStyle: FontStyle.italic))), // Fixed color

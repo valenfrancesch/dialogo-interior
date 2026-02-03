@@ -12,6 +12,10 @@ import '../services/library_statistics_service.dart';
 import '../models/library_statistics.dart';
 import '../models/prayer_entry.dart';
 import 'reading_screen.dart';
+import '../widgets/gospel_button.dart';
+import '../services/bible_service.dart';
+import '../models/gospel_data.dart';
+import 'gospel_reflections_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -173,6 +177,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           children: [
 
 
+            // 1. LOS SANTOS EVANGELIOS
+            _buildGospelsSection(context),
+            const SizedBox(height: 32),
+
             // 2. SECCIÓN DE CONSISTENCIA Y MEMORIA LITÚRGICA
             _buildConsistencyHeader(),
             const SizedBox(height: 12),
@@ -204,6 +212,75 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   // ===== WIDGETS PRIVADOS =====
+
+  Widget _buildGospelsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tus reflexiones sobre los Santos Evangelios',
+          style: GoogleFonts.montserrat(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.sacredDark, // Updated text color
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: GospelButton(
+                title: 'Mateo',
+
+                // icon: Icons.person, 
+                color: AppTheme.sacredRed,
+                onTap: () => _navigateToGospel(context, 'Mateo'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GospelButton(
+                title: 'Marcos',                // icon: Icons.pets, 
+                color: AppTheme.sacredRed,
+                onTap: () => _navigateToGospel(context, 'Marcos'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+             Expanded(
+              child: GospelButton(
+                title: 'Lucas',
+                // icon: Icons.help_outline, 
+                color: AppTheme.sacredRed, // Using consistent theme color, or maybe vary slightly? Design seems consistent.
+                onTap: () => _navigateToGospel(context, 'Lucas'), // Lucas symbol is Ox.
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GospelButton(
+                title: 'Juan',
+                // icon: Icons.air, 
+                color: AppTheme.sacredRed,
+                onTap: () => _navigateToGospel(context, 'Juan'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _navigateToGospel(BuildContext context, String gospel) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GospelReflectionsScreen(gospelName: gospel),
+      ),
+    );
+  }
 
   String _formatMonthYear(DateTime date) {
     // Requires intl package and initialization, or simple custom array
@@ -262,15 +339,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             color: AppTheme.sacredDark, // Updated text color
           ),
         ),
-        Text(
-          'MEMORIA LITÚRGICA',
-          style: GoogleFonts.montserrat(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.sacredRed, // Updated accent color
-            letterSpacing: 0.5,
-          ),
-        ),
+        
       ],
     );
   }
@@ -442,12 +511,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           _displayedMonth.month == DateTime.now().month && 
                           _displayedMonth.year == DateTime.now().year;
 
+            // Calculate if the day is disabled (more than 30 days away and no entry)
+            bool isDisabled = false;
+            if (visible) {
+              final currentDate = DateTime(_displayedMonth.year, _displayedMonth.month, day);
+              final today = DateTime.now();
+              // Calculate difference in days. Note: simple difference might be off by hours, so strip time.
+              final dateOnly = DateTime(currentDate.year, currentDate.month, currentDate.day);
+              final todayOnly = DateTime(today.year, today.month, today.day);
+              final diff = dateOnly.difference(todayOnly).inDays.abs();
+              
+              if (diff > 30 && !hasEntry) {
+                isDisabled = true;
+              }
+            }
+
             return visible
                 ? CalendarDay(
                     day: day,
                     hasEntry: hasEntry,
                     isToday: isToday,
-                    onTap: () => _loadGospelForDate(DateTime(_displayedMonth.year, _displayedMonth.month, day)),
+                    isDisabled: isDisabled,
+                    onTap: isDisabled 
+                      ? () {} // Do nothing if disabled
+                      : () => _loadGospelForDate(DateTime(_displayedMonth.year, _displayedMonth.month, day)),
                   )
                 : const SizedBox.shrink();
           },
@@ -508,8 +595,67 @@ class _LibraryScreenState extends State<LibraryScreen> {
         );
       }
 
-      // Fetch the gospel for that date
-      final gospel = await GospelRepository.fetchGospelData(selectedDate);
+      GospelData? gospel;
+      
+      final today = DateTime.now();
+      // Calculate diff stripping time
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final selectedDateDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+      final diff = selectedDateDate.difference(todayDate).inDays.abs();
+      
+      bool isOutOfRange = diff > 30;
+
+      if (isOutOfRange) {
+        // Try to load from local entry
+        // We use orElse just to get null safely (well, firstWhere throws if not found without orElse, so we handle it)
+        final entry = _allEntries.firstWhere(
+           (e) => 
+             e.date.year == selectedDate.year &&
+             e.date.month == selectedDate.month &&
+             e.date.day == selectedDate.day,
+           orElse: () => PrayerEntry(id: 'null', userId: '', date: selectedDate, gospelQuote: '', reflection: '', tags: [])
+        );
+
+        if (entry.id != 'null' && entry.gospelQuote.isNotEmpty) {
+           final bibleService = BibleService();
+           final parsed = bibleService.parseReference(entry.gospelQuote);
+           String content = '';
+           
+           if (parsed != null) {
+              content = await bibleService.getVersiclesText(
+                parsed['book'], 
+                parsed['chapter'], 
+                parsed['startVersicle'], 
+                parsed['endVersicle']
+              );
+           }
+           
+           if (content.isNotEmpty) {
+             gospel = GospelData(
+               title: entry.gospelQuote,
+               date: selectedDate,
+               firstReading: 'Lectura Histórica',
+               firstReadingReference: '',
+               psalm: 'Lectura desde Historial',
+               psalmReference: '',
+               evangeliumText: content,
+               commentTitle: 'Reflexión Guardada',
+               commentBody: 'Esta es una lectura recuperada de tu historial de reflexiones.',
+               commentAuthor: 'Historial',
+               commentSource: '',
+             );
+           }
+        }
+      }
+
+      if (gospel == null) {
+         if (isOutOfRange) {
+            // Should not happen if UI disables clicking, but safety check
+            throw Exception("Lectura no disponible para esta fecha lejana.");
+         }
+         // Fetch the gospel for that date
+         gospel = await GospelRepository.fetchGospelData(selectedDate);
+      }
       
       // Close loading dialog
       if (mounted) {

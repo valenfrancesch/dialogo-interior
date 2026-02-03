@@ -7,6 +7,7 @@ class CalendarDay extends StatelessWidget {
   final bool hasEntry;
   final bool isToday;
   final VoidCallback onTap;
+  final bool isDisabled;
 
   const CalendarDay({
     super.key,
@@ -14,12 +15,13 @@ class CalendarDay extends StatelessWidget {
     required this.hasEntry,
     required this.isToday,
     required this.onTap,
+    this.isDisabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isDisabled ? null : onTap,
       child: Container(
         decoration: BoxDecoration(
           color: hasEntry ? AppTheme.accentMint.withOpacity(0.15) : Colors.transparent, // Visible bg
@@ -29,7 +31,7 @@ class CalendarDay extends StatelessWidget {
                 ? AppTheme.accentMint
                 : (hasEntry
                     ? AppTheme.accentMint.withOpacity(0.5)
-                    : AppTheme.sacredGold.withOpacity(0.3)), // Visible border
+                    : AppTheme.sacredGold.withOpacity(isDisabled ? 0.1 : 0.3)), // Dimmed border if disabled
             width: isToday ? 2 : 1,
           ),
         ),
@@ -42,7 +44,9 @@ class CalendarDay extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: hasEntry ? AppTheme.accentMint : AppTheme.sacredDark.withOpacity(0.7), // Visible text
+                  color: isDisabled 
+                      ? AppTheme.sacredDark.withOpacity(0.2) // Disabled color
+                      : (hasEntry ? AppTheme.accentMint : AppTheme.sacredDark.withOpacity(0.7)),
                 ),
               ),
               if (hasEntry)

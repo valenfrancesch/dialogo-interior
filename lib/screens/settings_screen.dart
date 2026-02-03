@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -58,6 +59,13 @@ class SettingsScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
                 );
+              },
+            ),
+            _buildSettingsTile(
+              icon: Icons.favorite_border,
+              title: 'Donar',
+              onTap: () {
+                _showDonationDialog(context);
               },
             ),
             _buildSettingsTile(
@@ -231,7 +239,7 @@ class SettingsScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('¿Necesitas ayuda or tienes alguna sugerencia?', style: TextStyle(color: AppTheme.sacredDark)),
+            const Text('¿Necesitas ayuda o tienes alguna sugerencia?', style: TextStyle(color: AppTheme.sacredDark)),
             const SizedBox(height: 16),
             const Text('Escríbenos a:', style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.bold)),
             Text('dialogo.interior.app@gmail.com', style: TextStyle(color: AppTheme.accentMint)),
@@ -243,6 +251,93 @@ class SettingsScreen extends StatelessWidget {
             child: const Text('Cerrar', style: TextStyle(color: AppTheme.sacredDark)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showDonationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        title: Row(
+          children: [
+            Icon(Icons.volunteer_activism, color: AppTheme.sacredRed, size: 24),
+            const SizedBox(width: 8),
+            const Text('Apóyanos', style: TextStyle(color: AppTheme.sacredDark)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Tu ayuda es fundamental para mantener esta aplicación gratuita y sin publicidad. ¡Dios te bendiga!',
+              style: TextStyle(color: AppTheme.sacredDark, fontStyle: FontStyle.italic),
+            ),
+            const SizedBox(height: 20),
+            _buildCbuSection(context, 'Cuenta en Pesos (ARS)', '0000003100006822673293'),
+            const SizedBox(height: 16),
+            _buildCbuSection(context, 'Cuenta en Dólares (USD)', '3220001888062462650016'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar', style: TextStyle(color: AppTheme.sacredDark)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCbuSection(BuildContext context, String title, String cbu) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.sacredDark, fontSize: 13)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.sacredGold.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  cbu,
+                  style: GoogleFonts.robotoMono(fontSize: 12, color: AppTheme.sacredDark),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  // Clipboard requires importing services
+                  // But here we are inside a stateless widget method, let's use the context or helper
+                  // Actually, Clipboard needs 'package:flutter/services.dart'
+                   _copyToClipboard(context, cbu);
+                },
+                child: const Icon(Icons.copy, size: 18, color: AppTheme.accentMint),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _copyToClipboard(BuildContext context, String text) {
+    Clipboard.setData(ClipboardData(text: text)); 
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('CBU copiado al portapapeles'), 
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.green,
       ),
     );
   }
