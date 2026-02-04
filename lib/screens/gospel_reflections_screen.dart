@@ -242,23 +242,25 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
                     // Simple logic to show year header if it changes could be added here
                     // For now, replicating the design style (timeline)
                     
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Timeline Line
-                        Column(
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 24),
-                              child: Icon(Icons.auto_stories, size: 20, color: AppTheme.sacredGold),
-                            ),
-                            Container(
-                              width: 2,
-                              height: 150, // This needs to be dynamic or use IntrinsicHeight
-                              color: AppTheme.sacredGold.withOpacity(0.3),
-                            ),
-                          ],
-                        ),
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Timeline Line
+                          Column(
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 24),
+                                child: Icon(Icons.auto_stories, size: 20, color: AppTheme.sacredGold),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  width: 2,
+                                  color: AppTheme.sacredGold.withOpacity(0.3),
+                                ),
+                              ),
+                            ],
+                          ),
                         const SizedBox(width: 16),
                         
                         // Content
@@ -349,7 +351,7 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
                           ),
                         ),
                       ],
-                    );
+                    ));
                   },
                 ),
     );

@@ -491,7 +491,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            childAspectRatio: 1.2,
+            childAspectRatio: 0.9,
           ),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

@@ -201,6 +201,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   }
 
   Future<void> _saveReflection() async {
+    FocusScope.of(context).unfocus();
     final reflectionText = _responseController.text.trim();
     if (reflectionText.isEmpty && _highlightedText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

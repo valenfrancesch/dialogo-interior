@@ -36,8 +36,8 @@ class CalendarDay extends StatelessWidget {
           ),
         ),
         child: Center(
-          child: Stack(
-            alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 day.toString(),
@@ -50,8 +50,8 @@ class CalendarDay extends StatelessWidget {
                 ),
               ),
               if (hasEntry)
-                Positioned(
-                  bottom: 4,
+                Padding(
+                  padding: const EdgeInsets.only(top: 20), // approx 5mm
                   child: Container(
                     width: 4,
                     height: 4,
