@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -154,13 +155,21 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   int _selectedIndex = 0; // Index for the flattened list
   String _highlightedText = '';
   final TextEditingController _responseController = TextEditingController();
+  final TextEditingController _purposeController = TextEditingController();
   final PrayerRepository _prayerRepository = PrayerRepository();
   late List<String> _tabs;
   late List<String> _tabLabels; // For the toggle display
+  Timer? _debounceTimer;
+  String _saveStatus = 'saved'; // 'saved', 'saving', 'error'
+  String _lastReflectionText = '';
+  String _lastPurposeText = '';
+  late Future<List<PrayerEntry>> _historyFuture;
 
   @override
   void initState() {
     super.initState();
+    _responseController.addListener(_onTextChanged);
+    _purposeController.addListener(_onTextChanged);
     _tabs = ['1ª Lectura', 'Salmo'];
     _tabLabels = ['1ª Lec', 'Salmo'];
     
@@ -177,6 +186,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     // Default to Gospel (index of 'Evangelio')
     _selectedIndex = _tabs.indexOf('Evangelio');
     
+    _historyFuture = _prayerRepository.getHistoryByGospel(widget.gospel.title);
     _loadSavedReflection();
   }
 
@@ -186,7 +196,10 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       if (savedEntries.isNotEmpty && mounted) {
         setState(() {
           _responseController.text = savedEntries.first.reflection;
+          _lastReflectionText = savedEntries.first.reflection; // Initialize last text
           _highlightedText = savedEntries.first.highlightedText ?? '';
+          _purposeController.text = savedEntries.first.purpose ?? '';
+          _lastPurposeText = savedEntries.first.purpose ?? ''; // Initialize last text
         });
       }
     } catch (e) {
@@ -196,21 +209,48 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _responseController.dispose();
+    _purposeController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveReflection() async {
-    FocusScope.of(context).unfocus();
-    final reflectionText = _responseController.text.trim();
-    if (reflectionText.isEmpty && _highlightedText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor escribe tu reflexión o destaca un texto')),
-      );
+  void _onTextChanged() {
+    final reflectionText = _responseController.text;
+    final purposeText = _purposeController.text;
+
+    // Only set 'saving' and start timer if text actually changed
+    if (reflectionText == _lastReflectionText && purposeText == _lastPurposeText) {
       return;
     }
 
+    // Update last known text immediately to prevent duplicate triggers
+    _lastReflectionText = reflectionText;
+    _lastPurposeText = purposeText;
+
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    
+    setState(() {
+      _saveStatus = 'saving';
+    });
+
+    _debounceTimer = Timer(const Duration(seconds: 2), () {
+      _saveReflection();
+    });
+  }
+
+  Future<void> _saveReflection() async {
+    // No need to unfocus for autosave
+    final reflectionText = _responseController.text.trim();
+    final purposeText = _purposeController.text.trim();
+
+    // If everything is empty, we might not want to save, but let's allow saving empty to clear previous data if needed
+    // However, usually we don't save empty unless we are clearing. 
+    // For autosave, standard behavior is to save current state.
+
     try {
+      setState(() => _saveStatus = 'saving');
+      
       final existingEntries = await _prayerRepository.getHistoryByGospel(widget.gospel.title);
       String entryId = '';
       if (existingEntries.isNotEmpty) {
@@ -227,25 +267,19 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         gospelQuote: widget.gospel.title,
         reflection: reflectionText,
         highlightedText: _highlightedText.isNotEmpty ? _highlightedText : null,
+        purpose: purposeText.isNotEmpty ? purposeText : null,
         tags: existingEntries.isNotEmpty ? existingEntries.first.tags : [],
       );
 
       await _prayerRepository.saveReflection(prayerEntry);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✓ Reflexión guardada exitosamente'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() => _saveStatus = 'saved');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar: $e')),
-        );
+        setState(() => _saveStatus = 'error');
+        print('Error al guardar: $e');
       }
     }
   }
@@ -261,7 +295,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     shareText.writeln();
 
     if (_highlightedText.isNotEmpty) {
-      shareText.writeln('✨ Pasaje Destacado:');
+      shareText.writeln('✨ Luz de hoy:');
       shareText.writeln('"$_highlightedText"');
       shareText.writeln();
     }
@@ -372,6 +406,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildPrepareHeartButton(),
                 if (widget.gospel.feast != null && widget.gospel.feast!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -405,6 +440,191 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       ),
     ),
   );
+  }
+
+  Widget _buildPrepareHeartButton() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: GestureDetector(
+        onTap: _showPrepareHeartModal,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppTheme.accentMint.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(20),
+            color: AppTheme.accentMint.withOpacity(0.05),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.favorite_outline, // Or CupertinoIcons.heart
+                size: 16,
+                color: AppTheme.accentMint,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Preparar el corazón",
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accentMint,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPrepareHeartModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.primaryDarkBg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+              // 1. Título
+              Text(
+                "Antes de empezar...",
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.sacredDark,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // 2. Recomendaciones
+                _buildRecommendationItem(
+                  "🤫",
+                  "Haz silencio:",
+                  "Acalla los ruidos de fuera, pero sobre todo los pensamientos de dentro.",
+                ),
+                const SizedBox(height: 16),
+                _buildRecommendationItem(
+                  "🔕",
+                  "Desconéctate:",
+                  "Para una mejor experiencia, te sugerimos silenciar las notificaciones durante este momento.",
+                ),
+              const SizedBox(height: 16),
+              _buildRecommendationItem(
+                "👣",
+                "Detente:",
+                "No leas con prisa. No es información, es una carta de amor para vos.",
+              ),
+              const SizedBox(height: 16),
+              _buildRecommendationItem(
+                "🙏",
+                "Pide luz:",
+                "La mente comprende, pero solo el Espíritu hace arder el corazón.",
+              ),
+              const SizedBox(height: 32),
+
+              // 3. La Transición
+              Text(
+                "Nos ponemos en presencia del Señor e invocamos al Espíritu Santo:",
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.sacredDark.withOpacity(0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+
+              // 4. La Oración
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: _cardDecoration().copyWith(
+                  color: AppTheme.sacredGold.withOpacity(0.1),
+                  border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3)),
+                ),
+                child: Text(
+                  "Ven, Espíritu Santo, llena los corazones de tus fieles, y enciende en ellos el fuego de tu amor.\n\nEnvía tu Espíritu Creador y renueva la faz de la tierra.\n\nOh Dios, que has iluminado los corazones de tus hijos con la luz del Espíritu Santo; haznos dóciles a sus inspiraciones para gustar siempre el bien y gozar de su consuelo.\n\nPor Cristo nuestro Señor. Amén.",
+                  style: GoogleFonts.merriweather(
+                    fontSize: 14,
+                    height: 1.6,
+                    fontStyle: FontStyle.italic,
+                    color: AppTheme.sacredDark.withOpacity(0.9),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // 5. Botón de cierre
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentMint,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  "Estoy listo/a",
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16), // Bottom safe area spacer
+            ],
+          ),
+        ),
+      );
+      },
+    );
+  }
+
+  Widget _buildRecommendationItem(String icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          icon,
+          style: const TextStyle(fontSize: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                height: 1.5,
+                color: AppTheme.sacredDark,
+              ),
+              children: [
+                TextSpan(
+                  text: "$title ",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextSpan(
+                  text: description,
+                  style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.8)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // Helper for consistent card styling
@@ -520,7 +740,6 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                     textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.8), // Fixed text color
                     onHighlight: (text) {
                       setState(() => _highlightedText = text);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pasaje destacado actualizado'), duration: Duration(milliseconds: 1500)));
                       _saveReflection();
                     },
                   ),
@@ -555,7 +774,6 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                    onHighlight: (text) {
                      setState(() => _highlightedText = text);
                      NotificationService().scheduleFavoriteReminder(text, 20, 0);
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pasaje destacado actualizado y programado'), duration: Duration(milliseconds: 2000)));
                      _saveReflection();
                    },
                  ),
@@ -587,7 +805,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
              Row(
                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                children: [
-                 Text('Pasaje Destacado', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.accentMint)),
+                 Text('Luz de hoy', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.accentMint)),
                  if (_highlightedText.isNotEmpty) TextButton.icon(onPressed: () => setState(() => _highlightedText = ''), icon: const Icon(Icons.clear, size: 18), label: const Text('Limpiar'), style: TextButton.styleFrom(foregroundColor: AppTheme.sacredRed)),
                ],
              ),
@@ -614,7 +832,13 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
            ],
          ),
          const SizedBox(height: 24),
-         Text('¿Qué me dice Dios hoy?', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.accentMint)),
+         Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('¿Qué me dice Dios hoy?', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.accentMint)),
+              _buildSaveStatusIndicator(),
+            ],
+         ),
          const SizedBox(height: 12),
          TextField(
            controller: _responseController,
@@ -633,17 +857,46 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
            ),
          ),
          const SizedBox(height: 16),
-         SizedBox(
-           width: double.infinity,
-           height: 48,
-           child: ElevatedButton.icon(
-             onPressed: _saveReflection,
-             icon: const Icon(Icons.save),
-             label: const Text('Guardar Reflexión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentMint, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-           ),
-         ),
-         const SizedBox(height: 32),
+         /* Saved Button Removed for Autosave */
+         const SizedBox(height: 16),
+
+          // Sección de Propósito
+          Text(
+            'Propósito del día',
+            style: GoogleFonts.montserrat(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.sacredGold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _purposeController,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: AppTheme.sacredDark,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Escribe un propósito concreto...',
+              hintStyle: GoogleFonts.inter(
+                fontSize: 14,
+                color: AppTheme.sacredDark.withOpacity(0.4),
+                fontStyle: FontStyle.italic,
+              ),
+              filled: true,
+              fillColor: AppTheme.sacredGold.withOpacity(0.1),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.sacredGold)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.sacredGold.withOpacity(0.3))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              prefixIcon: const Icon(Icons.stars, color: AppTheme.sacredGold),
+            ),
+            maxLines: 2,
+            minLines: 1,
+          ),
+          const SizedBox(height: 32),
+
          if (_selectedIndex == _tabs.indexOf('Evangelio') || _selectedIndex == _tabs.indexOf('Comentario')) // Only show history on main gospel-related tabs
             _buildMemoriaEspiritualSection(),
          const SizedBox(height: 32),
@@ -651,9 +904,22 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     );
   }
 
+  Widget _buildSaveStatusIndicator() {
+    switch (_saveStatus) {
+      case 'saving':
+        return const Icon(Icons.sync, color: AppTheme.accentMint, size: 20);
+      case 'saved':
+        return const Icon(Icons.cloud_done, color: AppTheme.accentMint, size: 20);
+      case 'error':
+        return const Icon(Icons.cloud_off, color: Colors.red, size: 20);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   Widget _buildMemoriaEspiritualSection() {
     return FutureBuilder<List<PrayerEntry>>(
-      future: _prayerRepository.getHistoryByGospel(widget.gospel.title),
+      future: _historyFuture, // Use cached future
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: AppTheme.accentMint));

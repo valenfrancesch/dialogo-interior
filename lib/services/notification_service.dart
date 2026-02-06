@@ -101,7 +101,7 @@ class NotificationService {
     await _notifications.zonedSchedule(
       200, // ID único para el Favorito
       'Tu Palabra de Vida',
-      'Recuerda hoy: "$verse"',
+      '"$verse"',
       _nextInstanceOfTime(hour, minute),
       const NotificationDetails(
         android: AndroidNotificationDetails(

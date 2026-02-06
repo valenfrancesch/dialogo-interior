@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'privacy_policy.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -66,6 +67,16 @@ class SettingsScreen extends StatelessWidget {
               title: 'Donar',
               onTap: () {
                 _showDonationDialog(context);
+              },
+            ),
+            _buildSettingsTile(
+              icon: Icons.info_outline,
+              title: 'Acerca de',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AboutScreen()),
+                );
               },
             ),
             _buildSettingsTile(

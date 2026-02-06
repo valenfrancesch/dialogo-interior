@@ -26,7 +26,18 @@ class _MainNavigationState extends State<MainNavigation> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Diálogo interior'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/logo.png',
+              height: 32,
+              width: 32,
+            ),
+            const SizedBox(width: 12),
+            const Text('Diálogo interior'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),

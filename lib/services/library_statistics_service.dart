@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/library_statistics.dart';
 import '../repositories/prayer_repository.dart';
 
@@ -7,6 +8,7 @@ import '../repositories/prayer_repository.dart';
 class LibraryStatisticsService {
   final PrayerRepository _prayerRepository;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   LibraryStatisticsService({
     required PrayerRepository prayerRepository,
@@ -128,7 +130,7 @@ class LibraryStatisticsService {
 
       final thisMonthSnapshot = await thisMonthQuery.get();
       final thisMonthCount = thisMonthSnapshot.docs.length;
-
+     
       // Calcula crecimiento porcentual
       final percentageGrowth = await _calculateMonthlyGrowthPercentage(
         thisMonthCount,
@@ -317,7 +319,6 @@ class LibraryStatisticsService {
 
   /// Obtiene el ID del usuario actual
   String? _getCurrentUserId() {
-    // TODO: Implementar con FirebaseAuth cuando esté disponible
-    return '1'; // Hardcoded para testing
+    return _auth.currentUser?.uid;
   }
 }

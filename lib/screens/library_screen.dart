@@ -65,6 +65,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _growthFuture = _statisticsService.calculateSpiritualGrowthInsight('Juan 3:16-21');
   }
 
+  void _refreshStats() {
+    setState(() {
+      _statsFuture = Future.wait([
+        _statisticsService.calculateCurrentStreak(),
+        _statisticsService.calculateReflectionCount(),
+      ]);
+    });
+  }
+
   void _onSearchChanged() {
     setState(() {
       // Trigger rebuild to update filtering
@@ -76,9 +85,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
     try {
-      // Load all entries and tags
       final entries = await _prayerRepository.getUserReflections();
       final tags = await _prayerRepository.getUserUniqueTags();
+      
+      // Refresh stats to ensure they are up to date with potentially new entries
+      _refreshStats();
       
       // Load calendar days for current month
       final days = await _prayerRepository.getDaysWithEntries(
@@ -415,8 +426,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 child: StatisticsCard(
                   icon: Icons.book,
                   label: 'Reflexiones',
-                  mainValue: reflectionData.thisMonthCount.toString(),
-                  secondaryValue: '+${reflectionData.percentageGrowth.toStringAsFixed(1)}% este mes',
+                  mainValue: reflectionData.totalReflections.toString(),
+                  secondaryValue: '+${reflectionData.thisMonthCount} este mes',
                   onTap: () {
                     Scrollable.ensureVisible(
                       _diarySectionKey.currentContext!,

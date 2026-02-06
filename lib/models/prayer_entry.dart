@@ -7,6 +7,7 @@ class PrayerEntry {
   final String gospelQuote; // Cita bíblica (ej: "Juan 3:16-21")
   final String reflection; // Texto de reflexión del usuario
   final String? highlightedText; // Texto destacado del pasaje
+  final String? purpose; // Propósito del día
   final List<String> tags; // Etiquetas (Gratitud, Esperanza, etc)
 
   PrayerEntry({
@@ -16,6 +17,7 @@ class PrayerEntry {
     required this.gospelQuote,
     required this.reflection,
     this.highlightedText,
+    this.purpose,
     this.tags = const [],
   });
 
@@ -31,6 +33,7 @@ class PrayerEntry {
       gospelQuote: data['gospelQuote'] ?? '',
       reflection: data['reflection'] ?? '',
       highlightedText: data['highlightedText'],
+      purpose: data['purpose'],
       tags: List<String>.from(data['tags'] ?? []),
     );
   }
@@ -43,6 +46,7 @@ class PrayerEntry {
       'gospelQuote': gospelQuote,
       'reflection': reflection,
       'highlightedText': highlightedText,
+      'purpose': purpose,
       'tags': tags,
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -56,6 +60,7 @@ class PrayerEntry {
     String? gospelQuote,
     String? reflection,
     String? highlightedText,
+    String? purpose,
     List<String>? tags,
   }) {
     return PrayerEntry(
@@ -65,6 +70,7 @@ class PrayerEntry {
       gospelQuote: gospelQuote ?? this.gospelQuote,
       reflection: reflection ?? this.reflection,
       highlightedText: highlightedText ?? this.highlightedText,
+      purpose: purpose ?? this.purpose,
       tags: tags ?? this.tags,
     );
   }

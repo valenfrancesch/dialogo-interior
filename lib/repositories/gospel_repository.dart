@@ -242,7 +242,10 @@ class GospelRepository {
           .replaceAll(RegExp(r'Para recibir cada mañana.*?evangeliodeldia\.org'), '')
           .trim();
     }
-
+    
+    // Filtra dominios residuales
+    cleaned = cleaned.replaceAll(RegExp(r'evangeliodeldia\.org', caseSensitive: false), '').trim();
+    
     return cleaned;
   }
 }

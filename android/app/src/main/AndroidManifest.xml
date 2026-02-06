@@ -2,7 +2,7 @@
     <application
         android:label="Diálogo Interior"
         android:name="${applicationName}"
-        android:icon="assets/images/logo.png">
+        android:icon="@mipmap/launcher_icon">
         
         <activity
             android:name=".MainActivity"

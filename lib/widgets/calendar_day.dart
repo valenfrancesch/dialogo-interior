@@ -49,18 +49,7 @@ class CalendarDay extends StatelessWidget {
                       : (hasEntry ? AppTheme.accentMint : AppTheme.sacredDark.withOpacity(0.7)),
                 ),
               ),
-              if (hasEntry)
-                Padding(
-                  padding: const EdgeInsets.only(top: 20), // approx 5mm
-                  child: Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentMint,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
+
             ],
           ),
         ),

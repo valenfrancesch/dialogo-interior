@@ -3,12 +3,13 @@ class TextFormatter {
   /// Inserta saltos de línea adicionales después de puntos finales
   static String formatReadingText(String text) {
     if (text.isEmpty) return text;
-    
-    // Reemplaza ". " por ".\n\n" para separar párrafos visualmente
-    // Pero evita hacerlo en medio de citas bíblicas o abreviaturas comunes si es posible
-    // Una heurística simple: punto seguido de espacio y mayúscula
-    return text.replaceAllMapped(
-      RegExp(r'\. ([A-ZÁÉÍÓÚÑ])'), 
+
+    // Primero normalizamos los saltos de línea existentes
+    String normalized = text.replaceAll(RegExp(r'\n+'), '\n');
+
+    // Reemplaza ". " por ".\n\n" SOLO si no está seguido ya de un salto de línea
+    return normalized.replaceAllMapped(
+      RegExp(r'\. +([A-ZÁÉÍÓÚÑ])'),
       (match) => '.\n\n${match.group(1)}'
     );
   }
