@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:home_widget/home_widget.dart';
 import '../theme/app_theme.dart';
 import '../widgets/text_segment_toggle.dart';
 import '../widgets/selectable_text_content.dart';
@@ -13,6 +14,7 @@ import '../repositories/gospel_repository.dart';
 import '../repositories/prayer_repository.dart';
 import '../services/notification_service.dart';
 import '../utils/text_formatter.dart';
+import '../constants/app_data.dart';
 
 class ReadingScreen extends StatefulWidget {
   final GospelData? gospel;
@@ -268,13 +270,12 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         reflection: reflectionText,
         highlightedText: _highlightedText.isNotEmpty ? _highlightedText : null,
         purpose: purposeText.isNotEmpty ? purposeText : null,
-        tags: existingEntries.isNotEmpty ? existingEntries.first.tags : [],
       );
 
       await _prayerRepository.saveReflection(prayerEntry);
 
-      if (mounted) {
         setState(() => _saveStatus = 'saved');
+        await _saveToSharedStorage();
       }
     } catch (e) {
       if (mounted) {
@@ -325,6 +326,29 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
           );
         }
       }
+    }
+  }
+
+  Future<void> _saveToSharedStorage() async {
+    try {
+      // Configure App Group for iOS
+      await HomeWidget.setAppGroupId(AppData.appGroupId);
+
+      // Save Highlighted Text
+      if (_highlightedText.isNotEmpty) {
+        await HomeWidget.saveWidgetData<String>('highlighted_text', _highlightedText);
+      }
+      
+      // Save Purpose
+      final purposeText = _purposeController.text.trim();
+      if (purposeText.isNotEmpty) {
+        await HomeWidget.saveWidgetData<String>('purpose', purposeText);
+      }
+      
+      // Update the widget
+      await HomeWidget.updateWidget(name: 'HomeWidgetProvider', iOSName: 'HomeWidgetProvider');
+    } catch (e) {
+      debugPrint('Error saving to shared storage: $e');
     }
   }
 

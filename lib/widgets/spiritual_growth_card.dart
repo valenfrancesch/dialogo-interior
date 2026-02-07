@@ -74,34 +74,22 @@ class SpiritualGrowthCard extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Grid de estadísticas (2x2)
-            GridView.count(
-              crossAxisCount: 2,
-              childAspectRatio: 1.4,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+            Row(
               children: [
-                _buildStatBlock(
-                  label: 'Reflexiones',
-                  value: insight.totalReflections.toString(),
-                  icon: Icons.edit,
+                Expanded(
+                  child: _buildStatBlock(
+                    label: 'Reflexiones',
+                    value: insight.totalReflections.toString(),
+                    icon: Icons.edit,
+                  ),
                 ),
-                _buildStatBlock(
-                  label: 'Palabras Escritas',
-                  value: insight.totalWords.toString(),
-                  icon: Icons.text_fields,
-                ),
-                _buildStatBlock(
-                  label: 'Tema Recurrente',
-                  value: insight.recurringTheme,
-                  icon: Icons.label,
-                  isText: true,
-                ),
-                _buildStatBlock(
-                  label: 'Progreso',
-                  value: '${((insight.totalWords / 1000).toStringAsFixed(1))}K',
-                  icon: Icons.trending_up,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatBlock(
+                    label: 'Palabras Escritas',
+                    value: insight.totalWords.toString(),
+                    icon: Icons.text_fields,
+                  ),
                 ),
               ],
             ),
@@ -262,32 +250,7 @@ class SpiritualGrowthCard extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          if (entry.tags.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 4,
-              children: entry.tags
-                  .take(2)
-                  .map(
-                    (tag) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5), // Updated tag bg
-                        borderRadius: BorderRadius.circular(3),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: Text(
-                        tag,
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          color: AppTheme.sacredDark.withOpacity(0.6), // Visible text
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+
         ],
       ),
     );

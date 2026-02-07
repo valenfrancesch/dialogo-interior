@@ -8,7 +8,6 @@ class PrayerEntry {
   final String reflection; // Texto de reflexión del usuario
   final String? highlightedText; // Texto destacado del pasaje
   final String? purpose; // Propósito del día
-  final List<String> tags; // Etiquetas (Gratitud, Esperanza, etc)
 
   PrayerEntry({
     this.id,
@@ -18,7 +17,6 @@ class PrayerEntry {
     required this.reflection,
     this.highlightedText,
     this.purpose,
-    this.tags = const [],
   });
 
   /// Convierte un documento de Firestore a PrayerEntry
@@ -34,7 +32,6 @@ class PrayerEntry {
       reflection: data['reflection'] ?? '',
       highlightedText: data['highlightedText'],
       purpose: data['purpose'],
-      tags: List<String>.from(data['tags'] ?? []),
     );
   }
 
@@ -47,7 +44,6 @@ class PrayerEntry {
       'reflection': reflection,
       'highlightedText': highlightedText,
       'purpose': purpose,
-      'tags': tags,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
@@ -61,7 +57,6 @@ class PrayerEntry {
     String? reflection,
     String? highlightedText,
     String? purpose,
-    List<String>? tags,
   }) {
     return PrayerEntry(
       id: id ?? this.id,
@@ -71,7 +66,6 @@ class PrayerEntry {
       reflection: reflection ?? this.reflection,
       highlightedText: highlightedText ?? this.highlightedText,
       purpose: purpose ?? this.purpose,
-      tags: tags ?? this.tags,
     );
   }
 }

@@ -7,7 +7,6 @@ class DiaryEntryCard extends StatelessWidget {
   final String passage;
   final String title;
   final String excerpt;
-  final List<String> tags;
   final VoidCallback onTap;
 
   const DiaryEntryCard({
@@ -16,7 +15,6 @@ class DiaryEntryCard extends StatelessWidget {
     required this.passage,
     required this.title,
     required this.excerpt,
-    required this.tags,
     required this.onTap,
   });
 
@@ -90,36 +88,7 @@ class DiaryEntryCard extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Etiquetas
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: tags
-                  .map(
-                    (tag) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentMint.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: AppTheme.accentMint.withOpacity(0.3),
-                          width: 0.5,
-                        ),
-                      ),
-                      child: Text(
-                        '#$tag',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.accentMint,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
+
           ],
         ),
       ),

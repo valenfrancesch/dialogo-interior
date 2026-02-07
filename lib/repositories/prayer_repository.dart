@@ -34,7 +34,7 @@ class PrayerRepository {
             entryToSave.toFirestore(),
             SetOptions(
               merge: true,
-            ), // 'merge: true' protege campos que no envíes ahora, como tags previos
+            ),
           );
 
       return entryToSave.id!;
@@ -66,6 +66,30 @@ class PrayerRepository {
     }
   }
 
+  /// Obtiene las últimas N reflexiones del usuario (Optimizada para estadísticas)
+  Future<List<PrayerEntry>> getRecentReflections([int limit = 60]) async {
+    try {
+      final userId = _getCurrentUserId();
+      if (userId == null) {
+        throw Exception('Usuario no autenticado.');
+      }
+
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('entries')
+          .orderBy('date', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => PrayerEntry.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      throw Exception('Error al obtener reflexiones recientes: $e');
+    }
+  }
+
   /// Obtiene reflexiones históricas del mismo pasaje bíblico
   /// Esto es el corazón del "Flashback Espiritual"
   /// Busca todas las reflexiones donde gospelQuote coincida
@@ -92,56 +116,9 @@ class PrayerRepository {
     }
   }
 
-  /// Obtiene todas las etiquetas únicas que el usuario ha usado
-  /// Útil para la sección de "Mis Etiquetas" en Biblioteca
-  Future<Set<String>> getUserUniqueTags() async {
-    try {
-      final userId = _getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado.');
-      }
 
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('entries')
-          .get();
 
-      final tagsSet = <String>{};
-      for (final doc in snapshot.docs) {
-        final entry = PrayerEntry.fromFirestore(doc);
-        tagsSet.addAll(entry.tags);
-      }
 
-      return tagsSet;
-    } catch (e) {
-      throw Exception('Error al obtener etiquetas: $e');
-    }
-  }
-
-  /// Obtiene reflexiones filtradas por etiqueta específica
-  Future<List<PrayerEntry>> getReflectionsByTag(String tag) async {
-    try {
-      final userId = _getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado.');
-      }
-
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('entries')
-          .where('tags', arrayContains: tag)
-          .orderBy('date', descending: true)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => PrayerEntry.fromFirestore(doc))
-          .toList();
-    } catch (e) {
-      throw Exception('Error al obtener reflexiones por etiqueta: $e');
-    }
-  }
 
   /// Obtiene estadísticas del usuario para la Biblioteca
   Future<Map<String, dynamic>> getUserStats() async {
@@ -217,7 +194,7 @@ class PrayerRepository {
     return streak;
   }
 
-  /// Busca reflexiones por texto (en reflection y tags)
+  /// Busca reflexiones por texto
   Future<List<PrayerEntry>> searchReflections(String query) async {
     try {
       final userId = _getCurrentUserId();
@@ -238,8 +215,7 @@ class PrayerRepository {
           .where((entry) {
             return entry.reflection.toLowerCase().contains(lowerQuery) ||
                 (entry.highlightedText?.toLowerCase().contains(lowerQuery) ?? false) ||
-                entry.gospelQuote.toLowerCase().contains(lowerQuery) ||
-                entry.tags.any((tag) => tag.toLowerCase().contains(lowerQuery));
+                entry.gospelQuote.toLowerCase().contains(lowerQuery);
           })
           .toList();
 

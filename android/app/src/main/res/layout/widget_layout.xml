@@ -1,0 +1,55 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PALABRA VIVA"
+        android:textColor="#8B0000" 
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1"/>
+
+    <TextView
+        android:id="@+id/widget_highlight"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:text="Cargando lectura..."
+        android:textColor="#333333"
+        android:textSize="14sp"
+        android:ellipsize="end"
+        android:maxLines="4"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical">
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✔ "
+            android:textColor="#8B0000"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/widget_purpose"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mi propósito de hoy..."
+            android:textColor="#555555"
+            android:textSize="12sp"
+            android:textStyle="italic"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+    </LinearLayout>
+</LinearLayout>

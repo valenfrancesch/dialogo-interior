@@ -33,8 +33,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   DateTime _displayedMonth = DateTime.now();
   
   // State for fetched data
+  // State for fetched data
   List<PrayerEntry> _allEntries = [];
-  Set<String> _availableTags = {};
   List<int> _daysWithEntries = [];
   bool _isLoading = true;
 
@@ -86,7 +86,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     setState(() => _isLoading = true);
     try {
       final entries = await _prayerRepository.getUserReflections();
-      final tags = await _prayerRepository.getUserUniqueTags();
       
       // Refresh stats to ensure they are up to date with potentially new entries
       _refreshStats();
@@ -100,7 +99,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
       if (mounted) {
         setState(() {
           _allEntries = entries;
-          _availableTags = tags;
           _daysWithEntries = days;
           _isLoading = false;
         });
@@ -140,18 +138,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
     List<PrayerEntry> entries = _allEntries;
 
     // 1. Filter by Tag
-    if (_selectedTag.isNotEmpty) {
-      entries = entries.where((e) => e.tags.contains(_selectedTag)).toList();
-    }
-
     // 2. Filter by Search Query
     final query = _searchController.text.toLowerCase().trim();
     if (query.isNotEmpty) {
       entries = entries.where((e) {
         return e.reflection.toLowerCase().contains(query) ||
             e.gospelQuote.toLowerCase().contains(query) ||
-            (e.highlightedText?.toLowerCase().contains(query) ?? false) ||
-            e.tags.any((tag) => tag.toLowerCase().contains(query));
+            (e.highlightedText?.toLowerCase().contains(query) ?? false);
       }).toList();
     }
 
@@ -624,7 +617,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
              e.date.year == selectedDate.year &&
              e.date.month == selectedDate.month &&
              e.date.day == selectedDate.day,
-           orElse: () => PrayerEntry(id: 'null', userId: '', date: selectedDate, gospelQuote: '', reflection: '', tags: [])
+           orElse: () => PrayerEntry(id: 'null', userId: '', date: selectedDate, gospelQuote: '', reflection: '')
         );
 
         if (entry.id != 'null' && entry.gospelQuote.isNotEmpty) {
@@ -781,7 +774,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Diario de #${_selectedTag.isNotEmpty ? _selectedTag : 'Reflexiones'}',
+          'Diario de Reflexiones',
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -806,7 +799,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
               passage: entry.gospelQuote,
               title: 'Reflexión del día', // O un título dinámico si lo hubiera
               excerpt: entry.reflection,
-              tags: entry.tags,
               onTap: () {
                  _loadGospelForDate(entry.date);
               },

@@ -22,7 +22,7 @@ class LibraryStatisticsService {
   /// - Calcula porcentaje vs mes anterior (guardado en perfil)
   Future<StreakData> calculateCurrentStreak() async {
     try {
-      final entries = await _prayerRepository.getUserReflections();
+      final entries = await _prayerRepository.getRecentReflections(60);
       if (entries.isEmpty) {
         return StreakData(
           daysStreak: 0,
@@ -126,10 +126,11 @@ class LibraryStatisticsService {
           .doc(userId)
           .collection('entries')
           .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endOfMonth));
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endOfMonth))
+          .count();
 
       final thisMonthSnapshot = await thisMonthQuery.get();
-      final thisMonthCount = thisMonthSnapshot.docs.length;
+      final thisMonthCount = thisMonthSnapshot.count ?? 0;
      
       // Calcula crecimiento porcentual
       final percentageGrowth = await _calculateMonthlyGrowthPercentage(
@@ -176,10 +177,11 @@ class LibraryStatisticsService {
           .doc(userId)
           .collection('entries')
           .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(lastMonthStart))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(lastMonthEnd));
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(lastMonthEnd))
+          .count();
 
       final lastMonthSnapshot = await lastMonthQuery.get();
-      final lastMonthCount = lastMonthSnapshot.docs.length;
+      final lastMonthCount = lastMonthSnapshot.count ?? 0;
 
       if (lastMonthCount == 0) return 0.0;
 
@@ -229,7 +231,6 @@ class LibraryStatisticsService {
               date: entry.date,
               reflection: entry.reflection,
               gospelQuote: entry.gospelQuote,
-              tags: entry.tags,
               yearsAgo: yearsAgo,
             ),
           );
@@ -285,22 +286,7 @@ class LibraryStatisticsService {
         totalWords += entry.reflection.split(' ').length;
       }
 
-      // 3. Encuentra el tema recurrente (tag más frecuente)
-      final tagFrequency = <String, int>{};
-      for (final entry in reflectionsOnGospel) {
-        for (final tag in entry.tags) {
-          tagFrequency[tag] = (tagFrequency[tag] ?? 0) + 1;
-        }
-      }
 
-      String recurringTheme = 'Crecimiento Espiritual';
-      int maxFrequency = 0;
-      tagFrequency.forEach((tag, count) {
-        if (count > maxFrequency) {
-          maxFrequency = count;
-          recurringTheme = tag;
-        }
-      });
 
       // 4. Obtiene entradas históricas
       final historicalEntries = await getLiturgicalMemory(gospelQuote);
@@ -309,7 +295,6 @@ class LibraryStatisticsService {
         gospelQuote: gospelQuote,
         totalReflections: totalReflections,
         totalWords: totalWords,
-        recurringTheme: recurringTheme,
         historicalEntries: historicalEntries,
       );
     } catch (e) {

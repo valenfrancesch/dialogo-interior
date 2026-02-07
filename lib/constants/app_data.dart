@@ -1,4 +1,6 @@
 class AppData {
+  static const String appGroupId = 'group.dialogo_interior'; // TODO: Replace with your actual App Group ID
+
   static const List<String> countries = [
     'Argentina', 'Bolivia', 'Chile', 'Colombia', 'Costa Rica', 
     'Ecuador', 'España', 'México', 'Paraguay', 'Perú', 'Uruguay', 'Otro'

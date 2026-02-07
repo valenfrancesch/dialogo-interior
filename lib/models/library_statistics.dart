@@ -27,7 +27,6 @@ class LiturgicalMemoryEntry {
   final DateTime date;
   final String reflection;
   final String gospelQuote;
-  final List<String> tags;
   final int? yearsAgo; // 1, 3, o null si es reciente
 
   LiturgicalMemoryEntry({
@@ -35,7 +34,6 @@ class LiturgicalMemoryEntry {
     required this.date,
     required this.reflection,
     required this.gospelQuote,
-    required this.tags,
     this.yearsAgo,
   });
 }
@@ -43,15 +41,14 @@ class LiturgicalMemoryEntry {
 class SpiritualGrowthInsight {
   final String gospelQuote;
   final int totalReflections;
+
   final int totalWords;
-  final String recurringTheme; // El tag más frecuente
   final List<LiturgicalMemoryEntry> historicalEntries;
 
   SpiritualGrowthInsight({
     required this.gospelQuote,
     required this.totalReflections,
     required this.totalWords,
-    required this.recurringTheme,
     required this.historicalEntries,
   });
 }
