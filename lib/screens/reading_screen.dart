@@ -14,6 +14,7 @@ import '../repositories/gospel_repository.dart';
 import '../repositories/prayer_repository.dart';
 import '../services/notification_service.dart';
 import '../utils/text_formatter.dart';
+import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatform
 import '../constants/app_data.dart';
 
 class ReadingScreen extends StatefulWidget {
@@ -276,7 +277,6 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
         setState(() => _saveStatus = 'saved');
         await _saveToSharedStorage();
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _saveStatus = 'error');
@@ -330,10 +330,15 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   }
 
   Future<void> _saveToSharedStorage() async {
+    // home_widget is not supported on Web
+    if (kIsWeb) return;
+
     try {
       // Configure App Group for iOS
-      await HomeWidget.setAppGroupId(AppData.appGroupId);
-
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await HomeWidget.setAppGroupId(AppData.appGroupId);
+      }
+ 
       // Save Highlighted Text
       if (_highlightedText.isNotEmpty) {
         await HomeWidget.saveWidgetData<String>('highlighted_text', _highlightedText);

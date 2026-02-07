@@ -29,7 +29,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final PrayerRepository _prayerRepository = PrayerRepository();
   late final LibraryStatisticsService _statisticsService;
   
-  String _selectedTag = '';
   DateTime _displayedMonth = DateTime.now();
   
   // State for fetched data
@@ -689,84 +688,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  Widget _buildTagsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Mis Etiquetas',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.sacredDark, // Updated text color
-              ),
-            ),
-            GestureDetector(
-              onTap: () {},
-              child: Text(
-                'Editar',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.accentMint,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-      
-          children: [
-            if (_availableTags.isEmpty)
-              Text(
-                'No hay etiquetas registradas',
-                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.sacredDark.withOpacity(0.4)), // Updated text color
-              ),
-            ..._availableTags.map(
-              (tag) => GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedTag = _selectedTag == tag ? '' : tag;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _selectedTag == tag
-                        ? AppTheme.accentMint.withOpacity(0.2)
-                        : Colors.white, // Updated card color
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _selectedTag == tag
-                          ? AppTheme.accentMint
-                          : AppTheme.sacredGold.withOpacity(0.3), // Updated border color
-                      width: _selectedTag == tag ? 2 : 1,
-                    ),
-                  ),
-                  child: Text(
-                    tag,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: _selectedTag == tag
-                          ? AppTheme.accentMint
-                          : AppTheme.sacredDark, // Updated text color
-                      ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // Removed _buildTagsSection
 
   Widget _buildDiarySection() {
     return Column(
