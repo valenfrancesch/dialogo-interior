@@ -43,20 +43,33 @@ class PrayerRepository {
     }
   }
 
-  /// Obtiene todas las reflexiones del usuario actual
-  Future<List<PrayerEntry>> getUserReflections() async {
+  /// Obtiene reflexiones del usuario actual con paginación
+  /// [startAfter] - Documento desde donde continuar la paginación
+  /// [limit] - Número de reflexiones por página (default: 10)
+  Future<List<PrayerEntry>> getUserReflections({
+    DocumentSnapshot<Map<String, dynamic>>? startAfter,
+    int limit = 10,
+  }) async {
     try {
       final userId = _getCurrentUserId();
       if (userId == null) {
         throw Exception('Usuario no autenticado.');
       }
 
-      final snapshot = await _firestore
+      var query = _firestore
           .collection('users')
           .doc(userId)
           .collection('entries')
           .orderBy('date', descending: true)
-          .get();
+          .limit(limit);
+
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+
+
+      final snapshot = await query.get();
+
 
       return snapshot.docs
           .map((doc) => PrayerEntry.fromFirestore(doc))
@@ -66,29 +79,7 @@ class PrayerRepository {
     }
   }
 
-  /// Obtiene las últimas N reflexiones del usuario (Optimizada para estadísticas)
-  Future<List<PrayerEntry>> getRecentReflections([int limit = 60]) async {
-    try {
-      final userId = _getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado.');
-      }
 
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('entries')
-          .orderBy('date', descending: true)
-          .limit(limit)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => PrayerEntry.fromFirestore(doc))
-          .toList();
-    } catch (e) {
-      throw Exception('Error al obtener reflexiones recientes: $e');
-    }
-  }
 
   /// Obtiene reflexiones históricas del mismo pasaje bíblico
   /// Esto es el corazón del "Flashback Espiritual"
@@ -100,6 +91,7 @@ class PrayerRepository {
         throw Exception('Usuario no autenticado.');
       }
 
+
       final snapshot = await _firestore
           .collection('users')
           .doc(userId)
@@ -107,6 +99,7 @@ class PrayerRepository {
           .where('gospelQuote', isEqualTo: gospelQuote)
           .orderBy('date', descending: true)
           .get();
+
 
       return snapshot.docs
           .map((doc) => PrayerEntry.fromFirestore(doc))
@@ -120,7 +113,7 @@ class PrayerRepository {
 
 
 
-  /// Obtiene estadísticas del usuario para la Biblioteca
+  /// Obtiene estadísticas del usuario para la Biblioteca (Optimizado con agregaciones)
   Future<Map<String, dynamic>> getUserStats() async {
     try {
       final userId = _getCurrentUserId();
@@ -128,28 +121,45 @@ class PrayerRepository {
         throw Exception('Usuario no autenticado.');
       }
 
-      final snapshot = await _firestore
+      final entriesRef = _firestore
           .collection('users')
           .doc(userId)
-          .collection('entries')
+          .collection('entries');
+
+      // Usa agregación de Firestore para contar total de reflexiones
+
+      final totalCount = await entriesRef.count().get();
+      final totalReflections = totalCount.count ?? 0;
+
+
+      // Para la racha, solo obtiene entradas recientes (últimos 60 días)
+      final cutoffDate = DateTime.now().subtract(const Duration(days: 60));
+
+      final recentSnapshot = await entriesRef
+          .where('date', isGreaterThanOrEqualTo: cutoffDate)
+          .orderBy('date', descending: true)
           .get();
 
-      final totalReflections = snapshot.docs.length;
 
-      // Calcula la racha (días consecutivos con reflexión)
-      final streak = _calculateStreak(snapshot.docs);
+      final streak = _calculateStreak(recentSnapshot.docs);
 
-      // Cuenta reflexiones de este mes
+      // Cuenta reflexiones de este mes usando agregación
       final now = DateTime.now();
-      final thisMonth = snapshot.docs.where((doc) {
-        final entry = PrayerEntry.fromFirestore(doc);
-        return entry.date.month == now.month && entry.date.year == now.year;
-      }).length;
+      final firstDayOfMonth = DateTime(now.year, now.month, 1);
+      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      
+
+      final monthlyCount = await entriesRef
+          .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
+          .where('date', isLessThanOrEqualTo: lastDayOfMonth)
+          .count()
+          .get();
+
 
       return {
         'totalReflections': totalReflections,
         'streak': streak,
-        'thisMonth': thisMonth,
+        'thisMonth': monthlyCount.count ?? 0,
       };
     } catch (e) {
       throw Exception('Error al obtener estadísticas: $e');
@@ -157,6 +167,7 @@ class PrayerRepository {
   }
 
   /// Calcula la racha de días consecutivos con reflexiones
+  /// Retorna 0 si la racha está rota (última reflexión hace más de 1 día)
   int _calculateStreak(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
     if (docs.isEmpty) return 0;
 
@@ -168,13 +179,22 @@ class PrayerRepository {
     // Ordena por fecha descendente
     entries.sort((a, b) => b.date.compareTo(a.date));
 
-    int streak = 1;
+    final today = DateTime.now();
+    final todayNormalized = DateTime(today.year, today.month, today.day);
+    
     DateTime lastDate = DateTime(
       entries[0].date.year,
       entries[0].date.month,
       entries[0].date.day,
     );
 
+    // Verifica si la racha está activa (hoy o ayer)
+    final daysSinceLastEntry = todayNormalized.difference(lastDate).inDays;
+    if (daysSinceLastEntry > 1) {
+      return 0; // La racha está rota
+    }
+
+    int streak = 1;
     for (int i = 1; i < entries.length; i++) {
       final currentDate = DateTime(
         entries[i].date.year,
@@ -194,60 +214,9 @@ class PrayerRepository {
     return streak;
   }
 
-  /// Busca reflexiones por texto
-  Future<List<PrayerEntry>> searchReflections(String query) async {
-    try {
-      final userId = _getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado.');
-      }
 
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('entries')
-          .get();
 
-      final lowerQuery = query.toLowerCase();
 
-      final results = snapshot.docs
-          .map((doc) => PrayerEntry.fromFirestore(doc))
-          .where((entry) {
-            return entry.reflection.toLowerCase().contains(lowerQuery) ||
-                (entry.highlightedText?.toLowerCase().contains(lowerQuery) ?? false) ||
-                entry.gospelQuote.toLowerCase().contains(lowerQuery);
-          })
-          .toList();
-
-      results.sort((a, b) => b.date.compareTo(a.date));
-      return results;
-    } catch (e) {
-      throw Exception('Error al buscar reflexiones: $e');
-    }
-  }
-
-  /// Actualiza una reflexión existente
-  Future<void> updateReflection(PrayerEntry entry) async {
-    try {
-      if (entry.id == null) {
-        throw Exception('No se puede actualizar: ID de entrada no disponible');
-      }
-
-      final userId = _getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado.');
-      }
-
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('entries')
-          .doc(entry.id)
-          .update(entry.toFirestore());
-    } catch (e) {
-      throw Exception('Error al actualizar reflexión: $e');
-    }
-  }
 
   /// Elimina una reflexión
   Future<void> deleteReflection(String entryId) async {
@@ -291,28 +260,38 @@ class PrayerRepository {
     }
   }
 
+  /// Obtiene los días del mes que tienen reflexiones (para calendario)
   Future<List<int>> getDaysWithEntries(int year, int month) async {
-    final userId = _getCurrentUserId();
+    try {
+      final userId = _getCurrentUserId();
+      if (userId == null) {
+        throw Exception('Usuario no autenticado.');
+      }
 
-    // Definimos el rango del mes para la consulta
-    DateTime firstDay = DateTime(year, month, 1);
-    DateTime lastDay = DateTime(year, month + 1, 0);
+      // Define el rango del mes para la consulta
+      final firstDay = DateTime(year, month, 1);
+      final lastDay = DateTime(year, month + 1, 0, 23, 59, 59);
 
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('entries')
-        .where('date', isGreaterThanOrEqualTo: firstDay)
-        .where('date', isLessThanOrEqualTo: lastDay)
-        .get();
 
-    // Extraemos el día de cada fecha y eliminamos duplicados con .toSet()
-    final days = snapshot.docs
-        .map((doc) => (doc.data()['date'] as Timestamp).toDate().day)
-        .toSet()
-        .toList();
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('entries')
+          .where('date', isGreaterThanOrEqualTo: firstDay)
+          .where('date', isLessThanOrEqualTo: lastDay)
+          .get();
 
-    days.sort(); // Ordenamos de menor a mayor para el calendario
-    return days;
+
+      // Extrae el día de cada fecha y elimina duplicados con .toSet()
+      final days = snapshot.docs
+          .map((doc) => (doc.data()['date'] as Timestamp).toDate().day)
+          .toSet()
+          .toList();
+
+      days.sort(); // Ordena de menor a mayor para el calendario
+      return days;
+    } catch (e) {
+      throw Exception('Error al obtener días con entradas: $e');
+    }
   }
 }

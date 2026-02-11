@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'privacy_policy.dart';
@@ -43,6 +44,7 @@ class SettingsScreen extends StatelessWidget {
               icon: Icons.person_outline,
               title: 'Perfil',
               subtitle: Provider.of<AuthProvider>(context, listen: false).userEmail ?? 'Usuario',
+              showChevron: false,
               onTap: () {
                 // TODO: Implementar edición de perfil si es necesario
               },
@@ -139,6 +141,7 @@ class SettingsScreen extends StatelessWidget {
     required String title,
     String? subtitle,
     required VoidCallback onTap,
+    bool showChevron = true,
   }) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -152,7 +155,7 @@ class SettingsScreen extends StatelessWidget {
       ),
       title: Text(title, style: const TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.w500)),
       subtitle: subtitle != null ? Text(subtitle, style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.6), fontSize: 12)) : null,
-      trailing: Icon(Icons.chevron_right, color: AppTheme.sacredDark.withOpacity(0.3)),
+      trailing: showChevron ? Icon(Icons.chevron_right, color: AppTheme.sacredDark.withOpacity(0.3)) : null,
       onTap: onTap,
     );
   }
@@ -253,7 +256,16 @@ class SettingsScreen extends StatelessWidget {
             const Text('¿Necesitas ayuda o tienes alguna sugerencia?', style: TextStyle(color: AppTheme.sacredDark)),
             const SizedBox(height: 16),
             const Text('Escríbenos a:', style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.bold)),
-            Text('dialogo.interior.app@gmail.com', style: TextStyle(color: AppTheme.accentMint)),
+            GestureDetector(
+              onTap: () => _launchEmail('dialogo.interior.app@gmail.com'),
+              child: Text(
+                'dialogo.interior.app@gmail.com',
+                style: TextStyle(
+                  color: AppTheme.accentMint,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -264,6 +276,17 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _launchEmail(String email) async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: email,
+    );
+    
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    }
   }
 
   void _showDonationDialog(BuildContext context) {

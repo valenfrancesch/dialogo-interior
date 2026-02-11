@@ -1,7 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 
@@ -17,13 +16,21 @@ class NotificationService {
       // Initialize timezones
       tz.initializeTimeZones();
       
-      // On web or platforms without timezone support, getLocalTimezone might fail
+      // Set local timezone - use a common default or detect from DateTime
       try {
-        final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-        tz.setLocalLocation(tz.getLocation(timeZoneName));
+        // Try to use the system's local timezone
+        // For most cases, using 'America/Argentina/Buenos_Aires' or detecting from DateTime.now()
+        final String timeZoneName = DateTime.now().timeZoneName;
+        try {
+          tz.setLocalLocation(tz.getLocation(timeZoneName));
+        } catch (e) {
+          // Fallback to a reasonable default for Argentina
+          tz.setLocalLocation(tz.getLocation('America/Argentina/Buenos_Aires'));
+        }
       } catch (e) {
         debugPrint('NotificationService: Could not initialize timezone: $e');
-        // Fallback to UTC or don't set local location
+        // Fallback to UTC
+        tz.setLocalLocation(tz.getLocation('UTC'));
       }
 
       const AndroidInitializationSettings androidSettings =

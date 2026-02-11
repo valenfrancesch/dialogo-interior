@@ -27,7 +27,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // Email validation regex
   final _emailRegex = RegExp(
-    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
   );
 
   @override
@@ -74,15 +74,39 @@ class _AuthScreenState extends State<AuthScreen> {
     return null;
   }
 
-  String? _validatePassword(String password) {
+  // Simple password validation for login
+  String? _validatePasswordLogin(String password) {
     if (password.isEmpty) {
       return 'La contraseña es requerida';
     }
-    if (password.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres';
+    return null;
+  }
+
+  // Strong password validation for sign-up
+  String? _validatePasswordSignup(String password) {
+    if (password.isEmpty) {
+      return 'La contraseña es requerida';
+    }
+    if (password.length < 8) {
+      return 'La contraseña debe tener al menos 8 caracteres';
+    }
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      return 'La contraseña debe contener al menos una letra mayúscula';
+    }
+    if (!password.contains(RegExp(r'[a-z]'))) {
+      return 'La contraseña debe contener al menos una letra minúscula';
+    }
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      return 'La contraseña debe contener al menos un número';
     }
     return null;
   }
+
+  // Check individual password requirements for UI display
+  bool _hasMinLength(String password) => password.length >= 8;
+  bool _hasUppercase(String password) => password.contains(RegExp(r'[A-Z]'));
+  bool _hasLowercase(String password) => password.contains(RegExp(r'[a-z]'));
+  bool _hasNumber(String password) => password.contains(RegExp(r'[0-9]'));
 
   String? _validateConfirmPassword(String confirmPassword) {
     if (confirmPassword.isEmpty) {
@@ -104,8 +128,10 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    // Validate password
-    final passwordError = _validatePassword(_passwordController.text);
+    // Validate password (different validation for login vs signup)
+    final passwordError = _isLoginMode 
+        ? _validatePasswordLogin(_passwordController.text)
+        : _validatePasswordSignup(_passwordController.text);
     if (passwordError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(passwordError)),
@@ -207,6 +233,29 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Widget _buildPasswordRequirement(String text, bool isMet) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: isMet ? Colors.green : Colors.grey,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: isMet ? Colors.green : Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,7 +286,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 Text(
                   'El Evangelio hecho vida en tu corazón',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white70,
+                    color: Colors.grey[600],
                     fontStyle: FontStyle.italic,
                   ),
                   textAlign: TextAlign.center,
@@ -335,27 +384,22 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 // Birth Date Picker (only for registration)
                 if (!_isLoginMode)
-                  InkWell(
-                    onTap: authProvider.isLoading ? null : _selectBirthDate,
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Fecha de Nacimiento',
-                        prefixIcon: const Icon(Icons.cake),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        _selectedBirthDate != null
-                            ? DateFormat('dd/MM/yyyy').format(_selectedBirthDate!)
-                            : 'Selecciona tu fecha de nacimiento',
-                        style: TextStyle(
-                          color: _selectedBirthDate != null 
-                              ? Colors.white 
-                              : Colors.white54,
-                        ),
+                  TextFormField(
+                    readOnly: true,
+                    controller: TextEditingController(
+                      text: _selectedBirthDate != null
+                          ? DateFormat('dd/MM/yyyy').format(_selectedBirthDate!)
+                          : '',
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Fecha de Nacimiento',
+                      hintText: 'Selecciona tu fecha de nacimiento',
+                      prefixIcon: const Icon(Icons.cake),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                    onTap: authProvider.isLoading ? null : _selectBirthDate,
                   ),
                 if (!_isLoginMode) const SizedBox(height: 16),
 
@@ -371,7 +415,37 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   obscureText: true,
                   enabled: !authProvider.isLoading,
+                  onChanged: !_isLoginMode ? (value) => setState(() {}) : null, // Rebuild to update requirements
                 ),
+                
+                // Password Requirements (only for sign-up)
+                if (!_isLoginMode) ...[
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPasswordRequirement(
+                          'Al menos 8 caracteres',
+                          _hasMinLength(_passwordController.text),
+                        ),
+                        _buildPasswordRequirement(
+                          'Una letra mayúscula',
+                          _hasUppercase(_passwordController.text),
+                        ),
+                        _buildPasswordRequirement(
+                          'Una letra minúscula',
+                          _hasLowercase(_passwordController.text),
+                        ),
+                        _buildPasswordRequirement(
+                          'Un número',
+                          _hasNumber(_passwordController.text),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 // Confirm Password Field (only for registration)

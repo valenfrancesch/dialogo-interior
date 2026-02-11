@@ -1,4 +1,5 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
@@ -27,29 +28,34 @@
         android:ellipsize="end"
         android:maxLines="4"/>
 
+
     <LinearLayout
+        android:id="@+id/widget_purpose_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/widget_purpose_background"
+        android:padding="12dp"
         android:gravity="center_vertical">
         
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="✔ "
-            android:textColor="#8B0000"
-            android:textStyle="bold"/>
+            android:text="⭐"
+            android:textSize="16sp"
+            android:layout_marginEnd="8dp"/>
 
         <TextView
             android:id="@+id/widget_purpose"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="Mi propósito de hoy..."
-            android:textColor="#555555"
-            android:textSize="12sp"
-            android:textStyle="italic"
-            android:maxLines="1"
+            android:textColor="#333333"
+            android:textSize="13sp"
+            android:textStyle="normal"
+            android:maxLines="2"
             android:ellipsize="end"/>
     </LinearLayout>
 </LinearLayout>

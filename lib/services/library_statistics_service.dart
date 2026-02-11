@@ -14,63 +14,57 @@ class LibraryStatisticsService {
     required PrayerRepository prayerRepository,
   }) : _prayerRepository = prayerRepository;
 
+  // Cached stats to avoid duplicate calls
+  Map<String, dynamic>? _cachedStats;
+  DateTime? _statsLoadedAt;
+  Future<Map<String, dynamic>>? _pendingStatsFuture;
+
+  /// Gets user stats from cache or fetches if needed
+  /// Cache is valid for 10 seconds to handle rapid successive calls or component rebuilds
+  Future<Map<String, dynamic>> _getStatsWithCache() async {
+    final now = DateTime.now();
+    
+    // 1. Return cached stats if available and fresh (within 10 seconds)
+    if (_cachedStats != null && 
+        _statsLoadedAt != null && 
+        now.difference(_statsLoadedAt!).inSeconds < 10) {
+      return _cachedStats!;
+    }
+    
+    // 2. Return pending future if exists (request coalescing)
+    // This prevents duplicate calls when multiple widgets request stats simultaneously
+    if (_pendingStatsFuture != null) {
+      return _pendingStatsFuture!;
+    }
+    
+    // 3. Fetch fresh stats
+    _pendingStatsFuture = _prayerRepository.getUserStats().then((stats) {
+      _cachedStats = stats;
+      _statsLoadedAt = DateTime.now();
+      _pendingStatsFuture = null; // Clear pending after completion
+      return stats;
+    }).catchError((e) {
+      _pendingStatsFuture = null; // Clear pending on error
+      throw e;
+    });
+    
+    return _pendingStatsFuture!;
+  }
+
   /// ===== ESTADÍSTICA 1: RACHA ACTUAL (Días consecutivos) =====
-  /// Complejidad: ALTA
-  /// - Obtiene últimas 30 entradas ordenadas por fecha
-  /// - Verifica si existe entrada para hoy/ayer
-  /// - Itera hacia atrás contando días consecutivos de 24 horas
-  /// - Calcula porcentaje vs mes anterior (guardado en perfil)
+  /// Ahora usa getUserStats() optimizado del repositorio con cache
   Future<StreakData> calculateCurrentStreak() async {
     try {
-      final entries = await _prayerRepository.getRecentReflections(60);
-      if (entries.isEmpty) {
-        return StreakData(
-          daysStreak: 0,
-          percentageVsLastMonth: 0.0,
-          lastEntryDate: DateTime.now(),
-        );
-      }
-
-      // Ordena por fecha descendente (más reciente primero)
-      entries.sort((a, b) => b.date.compareTo(a.date));
-
-      // Toma las últimas 30 entradas
-      final recentEntries = entries.take(30).toList();
-
-      int streak = 0;
-      DateTime today = DateTime.now();
-      DateTime checkDate = DateTime(today.year, today.month, today.day);
-
-      // Verifica si existe entrada para hoy
-      bool hasEntryToday = recentEntries.any((entry) {
-        final entryDate = DateTime(entry.date.year, entry.date.month, entry.date.day);
-        return entryDate.compareTo(checkDate) == 0;
-      });
-
-      if (!hasEntryToday) {
-        // Si no hay entrada hoy, verifica ayer
-        checkDate = checkDate.subtract(const Duration(days: 1));
-      }
-
-      // Itera hacia atrás mientras la diferencia sea exactamente 24 horas
-      for (final entry in recentEntries) {
-        final entryDate = DateTime(entry.date.year, entry.date.month, entry.date.day);
-
-        if (entryDate.compareTo(checkDate) == 0) {
-          streak++;
-          checkDate = checkDate.subtract(const Duration(days: 1));
-        } else if (entryDate.isBefore(checkDate)) {
-          break;
-        }
-      }
-
+      final stats = await _getStatsWithCache();
+      final streak = stats['streak'] as int;
+      
       // Calcula porcentaje vs mes anterior
       final percentageVsLastMonth = await _calculateStreakGrowthPercentage();
 
       return StreakData(
         daysStreak: streak,
         percentageVsLastMonth: percentageVsLastMonth,
-        lastEntryDate: recentEntries.first.date,
+        lastEntryDate: DateTime.now(),
       );
     } catch (e) {
       throw Exception('Error al calcular racha: $e');
@@ -96,46 +90,18 @@ class LibraryStatisticsService {
   }
 
   /// ===== ESTADÍSTICA 2: CONTADOR TOTAL DE REFLEXIONES =====
-  /// Complejidad: MEDIA
-  /// - Usa Firestore count() para eficiencia
-  /// - Filtra mensualmente con where()
-  /// - Calcula crecimiento porcentual mensual
+  /// Ahora reutiliza los datos de getUserStats() para evitar duplicados
   Future<ReflectionCountData> calculateReflectionCount() async {
     try {
-      final userId = _getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado');
-      }
-
-      // Obtiene el conteo total de reflexiones
-      final countQuery = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('entries')
-          .count();
-      final countSnapshot = await countQuery.get();
-      final totalReflections = countSnapshot.count ?? 0;
-
-      // Obtiene entradas de este mes
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-      final thisMonthQuery = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('entries')
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endOfMonth))
-          .count();
-
-      final thisMonthSnapshot = await thisMonthQuery.get();
-      final thisMonthCount = thisMonthSnapshot.count ?? 0;
+      // Reutiliza los datos de getUserStats() que ya incluyen total y thisMonth
+      final stats = await _getStatsWithCache();
+      final totalReflections = stats['totalReflections'] as int;
+      final thisMonthCount = stats['thisMonth'] as int;
      
       // Calcula crecimiento porcentual
       final percentageGrowth = await _calculateMonthlyGrowthPercentage(
         thisMonthCount,
-        startOfMonth,
+        DateTime(DateTime.now().year, DateTime.now().month, 1),
       );
 
       return ReflectionCountData(

@@ -13,6 +13,7 @@ import '../models/prayer_entry.dart';
 import '../repositories/gospel_repository.dart';
 import '../repositories/prayer_repository.dart';
 import '../services/notification_service.dart';
+import '../services/cache_manager.dart';
 import '../utils/text_formatter.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatform
 import '../constants/app_data.dart';
@@ -160,19 +161,23 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   final TextEditingController _responseController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
   final PrayerRepository _prayerRepository = PrayerRepository();
+  final CacheManager _cache = CacheManager();
   late List<String> _tabs;
   late List<String> _tabLabels; // For the toggle display
-  Timer? _debounceTimer;
   String _saveStatus = 'saved'; // 'saved', 'saving', 'error'
   String _lastReflectionText = '';
   String _lastPurposeText = '';
   late Future<List<PrayerEntry>> _historyFuture;
+  final FocusNode _reflectionFocusNode = FocusNode();
+  final FocusNode _purposeFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _responseController.addListener(_onTextChanged);
-    _purposeController.addListener(_onTextChanged);
+    // Add focus listeners to save when unfocusing
+    _reflectionFocusNode.addListener(_onReflectionFocusChanged);
+    _purposeFocusNode.addListener(_onPurposeFocusChanged);
+    
     _tabs = ['1ª Lectura', 'Salmo'];
     _tabLabels = ['1ª Lec', 'Salmo'];
     
@@ -189,20 +194,53 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     // Default to Gospel (index of 'Evangelio')
     _selectedIndex = _tabs.indexOf('Evangelio');
     
-    _historyFuture = _prayerRepository.getHistoryByGospel(widget.gospel.title);
+    // Cache spiritual flashback (history) until end of day
+    final historyCacheKey = CacheKeys.forDate(CacheKeys.readingHistory, widget.gospel.date);
+    final cachedHistory = _cache.get<List<PrayerEntry>>(historyCacheKey);
+    
+    if (cachedHistory != null) {
+      _historyFuture = Future.value(cachedHistory);
+    } else {
+      _historyFuture = _prayerRepository.getHistoryByGospel(widget.gospel.title).then((history) {
+        _cache.setUntilEndOfDay(historyCacheKey, history);
+        return history;
+      });
+    }
+    
     _loadSavedReflection();
   }
 
   Future<void> _loadSavedReflection() async {
+    // Try to get from cache first
+    final reflectionCacheKey = CacheKeys.forDate(CacheKeys.readingReflection, widget.gospel.date);
+    final cachedReflection = _cache.get<PrayerEntry>(reflectionCacheKey);
+    
+    if (cachedReflection != null) {
+      setState(() {
+        _responseController.text = cachedReflection.reflection;
+        _lastReflectionText = cachedReflection.reflection;
+        _highlightedText = cachedReflection.highlightedText ?? '';
+        _purposeController.text = cachedReflection.purpose ?? '';
+        _lastPurposeText = cachedReflection.purpose ?? '';
+      });
+      return;
+    }
+    
+    // No cache, use the already-fetched history from _historyFuture
     try {
-      final savedEntries = await _prayerRepository.getHistoryByGospel(widget.gospel.title);
+      final savedEntries = await _historyFuture;
       if (savedEntries.isNotEmpty && mounted) {
+        final entry = savedEntries.first;
+        
+        // Cache until end of day
+        _cache.setUntilEndOfDay(reflectionCacheKey, entry);
+        
         setState(() {
-          _responseController.text = savedEntries.first.reflection;
-          _lastReflectionText = savedEntries.first.reflection; // Initialize last text
-          _highlightedText = savedEntries.first.highlightedText ?? '';
-          _purposeController.text = savedEntries.first.purpose ?? '';
-          _lastPurposeText = savedEntries.first.purpose ?? ''; // Initialize last text
+          _responseController.text = entry.reflection;
+          _lastReflectionText = entry.reflection; // Initialize last text
+          _highlightedText = entry.highlightedText ?? '';
+          _purposeController.text = entry.purpose ?? '';
+          _lastPurposeText = entry.purpose ?? ''; // Initialize last text
         });
       }
     } catch (e) {
@@ -212,49 +250,52 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
+    _reflectionFocusNode.dispose();
+    _purposeFocusNode.dispose();
     _responseController.dispose();
     _purposeController.dispose();
     super.dispose();
   }
 
-  void _onTextChanged() {
-    final reflectionText = _responseController.text;
-    final purposeText = _purposeController.text;
-
-    // Only set 'saving' and start timer if text actually changed
-    if (reflectionText == _lastReflectionText && purposeText == _lastPurposeText) {
-      return;
+  void _onReflectionFocusChanged() {
+    // Save when reflection field loses focus
+    if (!_reflectionFocusNode.hasFocus) {
+      final reflectionText = _responseController.text;
+      if (reflectionText != _lastReflectionText) {
+        _lastReflectionText = reflectionText;
+        _saveReflection();
+      }
     }
+  }
 
-    // Update last known text immediately to prevent duplicate triggers
-    _lastReflectionText = reflectionText;
-    _lastPurposeText = purposeText;
-
-    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-    
-    setState(() {
-      _saveStatus = 'saving';
-    });
-
-    _debounceTimer = Timer(const Duration(seconds: 2), () {
-      _saveReflection();
-    });
+  void _onPurposeFocusChanged() {
+    // Save when purpose field loses focus
+    if (!_purposeFocusNode.hasFocus) {
+      final purposeText = _purposeController.text;
+      if (purposeText != _lastPurposeText) {
+        _lastPurposeText = purposeText;
+        _saveReflection();
+      }
+    }
   }
 
   Future<void> _saveReflection() async {
     // No need to unfocus for autosave
     final reflectionText = _responseController.text.trim();
     final purposeText = _purposeController.text.trim();
+    final highlightedText = _highlightedText.trim();
 
-    // If everything is empty, we might not want to save, but let's allow saving empty to clear previous data if needed
-    // However, usually we don't save empty unless we are clearing. 
-    // For autosave, standard behavior is to save current state.
+    // Don't save if all three fields are empty
+    if (reflectionText.isEmpty && highlightedText.isEmpty && purposeText.isEmpty) {
+      setState(() => _saveStatus = '');
+      return;
+    }
 
     try {
       setState(() => _saveStatus = 'saving');
       
-      final existingEntries = await _prayerRepository.getHistoryByGospel(widget.gospel.title);
+      // Use cached history instead of fetching again
+      final existingEntries = await _historyFuture;
       String entryId = '';
       if (existingEntries.isNotEmpty) {
         entryId = existingEntries.first.id ?? '';
@@ -269,11 +310,30 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         date: widget.gospel.date,
         gospelQuote: widget.gospel.title,
         reflection: reflectionText,
-        highlightedText: _highlightedText.isNotEmpty ? _highlightedText : null,
+        highlightedText: highlightedText.isNotEmpty ? highlightedText : null,
         purpose: purposeText.isNotEmpty ? purposeText : null,
       );
 
       await _prayerRepository.saveReflection(prayerEntry);
+
+      // Update the history cache with the new entry
+      final historyCacheKey = CacheKeys.forDate(CacheKeys.readingHistory, widget.gospel.date);
+      final reflectionCacheKey = CacheKeys.forDate(CacheKeys.readingReflection, widget.gospel.date);
+      
+      // Update both caches
+      _cache.setUntilEndOfDay(reflectionCacheKey, prayerEntry);
+      
+      // Update history cache - replace or add the entry
+      final updatedHistory = existingEntries.isEmpty 
+          ? [prayerEntry]
+          : [prayerEntry, ...existingEntries.skip(1)];
+      _cache.setUntilEndOfDay(historyCacheKey, updatedHistory);
+      
+      // Update the future so subsequent calls use the updated data
+      _historyFuture = Future.value(updatedHistory);
+      
+      // Also invalidate library cache so it shows fresh data
+      _cache.invalidateLibrary();
 
         setState(() => _saveStatus = 'saved');
         await _saveToSharedStorage();
@@ -309,7 +369,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     }
 
     shareText.writeln('───────────────');
-    shareText.writeln('Compartido desde Diálogo interior');
+    shareText.writeln('Compartido desde Diálogo Interior');
 
     try {
       await Share.share(shareText.toString());
@@ -339,19 +399,32 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         await HomeWidget.setAppGroupId(AppData.appGroupId);
       }
  
-      // Save Highlighted Text
-      if (_highlightedText.isNotEmpty) {
-        await HomeWidget.saveWidgetData<String>('highlighted_text', _highlightedText);
-      }
+      // Save the current date to track when data was last updated
+      final today = DateTime.now();
+      final dateKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      await HomeWidget.saveWidgetData<String>('widget_date', dateKey);
       
-      // Save Purpose
+      // Always save highlighted text (even if empty to clear previous value)
+      await HomeWidget.saveWidgetData<String>(
+        'highlighted_text', 
+        _highlightedText.isNotEmpty ? _highlightedText : 'Abre la app para leer hoy'
+      );
+      
+      // Always save purpose (even if empty to clear previous value)
       final purposeText = _purposeController.text.trim();
-      if (purposeText.isNotEmpty) {
-        await HomeWidget.saveWidgetData<String>('purpose', purposeText);
-      }
+      await HomeWidget.saveWidgetData<String>(
+        'purpose', 
+        purposeText.isNotEmpty ? purposeText : ''
+      );
       
       // Update the widget
-      await HomeWidget.updateWidget(name: 'HomeWidgetProvider', iOSName: 'HomeWidgetProvider');
+      await HomeWidget.updateWidget(
+        name: 'DialogoWidgetProvider', 
+        androidName: 'DialogoWidgetProvider',
+        iOSName: 'HomeWidgetProvider'
+      );
+      
+      debugPrint('Widget updated: date="$dateKey", highlight="${_highlightedText}", purpose="$purposeText"');
     } catch (e) {
       debugPrint('Error saving to shared storage: $e');
     }
@@ -741,44 +814,51 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   }
 
   Widget _buildGospelTab() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-            child: Text(
-              widget.gospel.title,
-              style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.sacredDark, // Fixed text color
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: _cardDecoration(), // Updated to shared decoration
-                  child: SelectableTextContent(
-                    text: TextFormatter.formatReadingText(widget.gospel.evangeliumText),
-                    textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.8), // Fixed text color
-                    onHighlight: (text) {
-                      setState(() => _highlightedText = text);
-                      _saveReflection();
-                    },
-                  ),
+    return GestureDetector(
+      onTap: () {
+        // Unfocus any active text field when tapping outside
+        FocusScope.of(context).unfocus();
+      },
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Text(
+                widget.gospel.title,
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.sacredDark, // Fixed text color
                 ),
-                
-                 _buildReflectionInputSection(),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: _cardDecoration(), // Updated to shared decoration
+                    child: SelectableTextContent(
+                      text: TextFormatter.formatReadingText(widget.gospel.evangeliumText),
+                      textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.8), // Fixed text color
+                      highlightedText: _highlightedText,
+                      onHighlight: (text) {
+                        setState(() => _highlightedText = text);
+                        _saveReflection();
+                      },
+                    ),
+                  ),
+                  
+                   _buildReflectionInputSection(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -800,6 +880,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                  SelectableTextContent(
                    text: widget.gospel.commentBody,
                    textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.8), // Fixed color
+                   highlightedText: _highlightedText,
                    onHighlight: (text) {
                      setState(() => _highlightedText = text);
                      NotificationService().scheduleFavoriteReminder(text, 20, 0);
@@ -871,6 +952,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
          const SizedBox(height: 12),
          TextField(
            controller: _responseController,
+           focusNode: _reflectionFocusNode,
            maxLines: 5,
            minLines: 3,
            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark), // Fixed color
@@ -901,6 +983,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
           const SizedBox(height: 12),
           TextField(
             controller: _purposeController,
+            focusNode: _purposeFocusNode,
             style: GoogleFonts.inter(
               fontSize: 14,
               color: AppTheme.sacredDark,
@@ -993,9 +1076,9 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                     timeLabel: yearsAgo,
                     date: _formatDate(entry.date),
                     passage: entry.gospelQuote,
-                    summary: entry.reflection.length > 100 ? '${entry.reflection.substring(0, 100)}...' : entry.reflection,
                     fullReflection: entry.reflection,
-                    wordCount: entry.reflection.split(' ').length,
+                    highlightedText: entry.highlightedText,
+                    purpose: entry.purpose,
                     isFirstReflection: false,
                   );
                 }).toList(),
