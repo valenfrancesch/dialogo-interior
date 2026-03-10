@@ -3,7 +3,7 @@ import 'package:html/parser.dart' as html_parser;
 import '../models/gospel_data.dart';
 
 class GospelRepository {
-  static const String _baseUrl = 'http://feed.evangelizo.org/v2/reader.php';
+  static const String _baseUrl = 'https://feed.evangelizo.org/v2/reader.php';
 
   /// Obtiene datos completos del evangelio del día y lecturas mediante peticiones paralelas
   static Future<GospelData> fetchGospelData(DateTime date) async {
