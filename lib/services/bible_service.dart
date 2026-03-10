@@ -156,7 +156,7 @@ class BibleService {
         // and current versicle range [vNumStart, vNumEnd]
         // We include if any part overlaps
         if (vNumEnd >= startVersicle && vNumStart <= endVersicle) {
-          buffer.writeln('${vStr}. ${v['text']}');
+          buffer.writeln('$vStr. ${v['text']}');
         }
       }
     }

@@ -31,8 +31,6 @@ class AppTheme {
         onPrimary: Colors.white,
         onSecondary: sacredDark,
         onSurface: sacredDark.withOpacity(0.9),
-        background: sacredCream,
-        onBackground: sacredDark,
       ),
       textTheme: _buildTextTheme(),
       appBarTheme: AppBarTheme(

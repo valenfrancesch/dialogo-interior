@@ -424,7 +424,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         iOSName: 'HomeWidgetProvider'
       );
       
-      debugPrint('Widget updated: date="$dateKey", highlight="${_highlightedText}", purpose="$purposeText"');
+      debugPrint('Widget updated: date="$dateKey", highlight="$_highlightedText", purpose="$purposeText"');
     } catch (e) {
       debugPrint('Error saving to shared storage: $e');
     }
