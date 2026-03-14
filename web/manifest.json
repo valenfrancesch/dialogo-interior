@@ -3,7 +3,7 @@
     "short_name": "flutter_application_1",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#F9F6F0",
+    "background_color": "#EAD2A8",
     "theme_color": "#8B0000",
     "description": "A new Flutter project.",
     "orientation": "portrait-primary",
