@@ -42,12 +42,8 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
       physics: const BouncingScrollPhysics(),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white, // Updated for better contrast on cream bg
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppTheme.sacredGold.withOpacity(0.3), // Visible border
-            width: 1,
-          ),
+          color: const Color(0xFFEBE8E3),
+          borderRadius: BorderRadius.circular(24),
         ),
         padding: const EdgeInsets.all(4),
         child: Row(
@@ -63,28 +59,22 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                margin: const EdgeInsets.only(right: 4), // Small gap
+                margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(
                   color: _selectedIndex == index
-                      ? AppTheme.accentMint.withOpacity(0.15)
+                      ? AppTheme.accentMint
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: _selectedIndex == index
-                      ? Border.all(
-                          color: AppTheme.accentMint,
-                          width: 1.5,
-                        )
-                      : null,
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   widget.segments[index],
                   style: GoogleFonts.montserrat(
-                    fontSize: 13, // Slightly smaller to fit better
-                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                     color: _selectedIndex == index
-                        ? AppTheme.accentMint
-                        : AppTheme.sacredDark.withOpacity(0.6), // Visible unselected text
+                        ? Colors.white
+                        : Colors.black,
                   ),
                 ),
               ),

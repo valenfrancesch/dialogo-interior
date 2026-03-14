@@ -3,16 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' as custom_auth;
 import '../theme/app_theme.dart';
 import 'privacy_policy.dart';
 import 'about_screen.dart';
+import 'auth_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<custom_auth.AuthProvider>(context);
+    final isGuest = !authProvider.isAuthenticated;
+
     final headerStyle = GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.bold,
@@ -20,35 +25,69 @@ class SettingsScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkBg, // Mapped to Sacred Cream
-      appBar: AppBar(
-        title: Text(
-          'Ajustes', 
-          style: GoogleFonts.inter(
-            color: AppTheme.sacredDark, // Visible title
-            fontWeight: FontWeight.bold
-          )
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppTheme.accentMint),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      backgroundColor: AppTheme.primaryDarkBg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Branding Header (Logo + Title)
+              Row(
+                children: [
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 32,
+                    width: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Diálogo interior',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.sacredRed,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Screen Title
+              Text(
+                'Ajustes',
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.sacredDark,
+                ),
+              ),
+              const SizedBox(height: 24),
+
             Text('Cuenta', style: headerStyle),
             const SizedBox(height: 10),
-            _buildSettingsTile(
-              icon: Icons.person_outline,
-              title: 'Perfil',
-              subtitle: Provider.of<AuthProvider>(context, listen: false).userEmail ?? 'Usuario',
-              showChevron: false,
-              onTap: () {
-                // TODO: Implementar edición de perfil si es necesario
-              },
-            ),
+            if (isGuest)
+              _buildSettingsTile(
+                icon: Icons.login,
+                title: 'Iniciar sesión',
+                subtitle: 'Crea tu cuenta para guardar tus reflexiones',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AuthScreen()),
+                  );
+                },
+              )
+            else
+              _buildSettingsTile(
+                icon: Icons.person_outline,
+                title: 'Perfil',
+                subtitle: authProvider.userEmail ?? 'Usuario',
+                showChevron: false,
+                onTap: () {
+                  // TODO: Implementar edición de perfil si es necesario
+                },
+              ),
             Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
             const SizedBox(height: 20),
             
@@ -89,48 +128,49 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
             Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
-            const SizedBox(height: 30),
-            
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.sacredRed.withOpacity(0.1),
-                  foregroundColor: AppTheme.sacredRed,
-                  side: const BorderSide(color: AppTheme.sacredRed),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            if (!isGuest) ...[
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.sacredRed.withOpacity(0.1),
+                    foregroundColor: AppTheme.sacredRed,
+                    side: const BorderSide(color: AppTheme.sacredRed),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
                   ),
-                  elevation: 0,
+                  onPressed: () => _handleLogout(context),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Cerrar sesión', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                onPressed: () => _handleLogout(context),
-                icon: const Icon(Icons.logout),
-                label: const Text('Cerrar sesión', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-            ),
-            const SizedBox(height: 12),
-            
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.sacredDark.withOpacity(0.5),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.sacredDark.withOpacity(0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _handleDeleteAccount(context),
+                  icon: const Icon(Icons.delete_forever_outlined, size: 18),
+                  label: const Text('Eliminar mi rastro permanentemente', style: TextStyle(fontSize: 12)),
                 ),
-                onPressed: () => _handleDeleteAccount(context),
-                icon: const Icon(Icons.delete_forever_outlined, size: 18),
-                label: const Text('Eliminar mi rastro permanentemente', style: TextStyle(fontSize: 12)),
               ),
-            ),
-            const SizedBox(height: 40),
-            Center(
-              child: Text(
-                'Diálogo Interior v1.0.0',
-                style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.4), fontSize: 12),
+            ],
+              const SizedBox(height: 40),
+              Center(
+                child: Text(
+                  'Diálogo Interior v1.0.0',
+                  style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.4), fontSize: 12),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -161,7 +201,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _handleLogout(BuildContext context) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<custom_auth.AuthProvider>(context, listen: false);
     
     // Mostrar diálogo de confirmación
     final bool? confirm = await showDialog<bool>(
@@ -186,15 +226,12 @@ class SettingsScreen extends StatelessWidget {
 
     if (confirm == true) {
       await authProvider.logout();
-      // El StreamBuilder en main.dart se encargará de redirigir a AuthScreen automaticamente
-      if (context.mounted) {
-        Navigator.pop(context); // Cerrar la pantalla de ajustes
-      }
+      // El StreamBuilder en main.dart se encargará de reconstruir MainNavigation con estado de invitado
     }
   }
 
   void _handleDeleteAccount(BuildContext context) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<custom_auth.AuthProvider>(context, listen: false);
     
     // Mostrar diálogo de confirmación doble
     final bool? confirm = await showDialog<bool>(
@@ -227,7 +264,6 @@ class SettingsScreen extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Perfil y cuenta eliminados correctamente.')),
           );
-          Navigator.pop(context); // Cerrar la pantalla de ajustes
         }
       } else {
         if (context.mounted) {

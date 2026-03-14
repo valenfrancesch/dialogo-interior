@@ -382,156 +382,155 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
                     ],
                   ),
                 )
-              : Column(
-                  children: [
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredEntries.length,
-                        itemBuilder: (context, index) {
-                          final entry = _filteredEntries[index];
-                          
-                          // Simple logic to show year header if it changes could be added here
-                          // For now, replicating the design style (timeline)
-                          
-                          return IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Timeline Line
-                                Column(
-                                  children: [
-                                    Container(
-                                      margin: const EdgeInsets.only(top: 24),
-                                      child: Icon(Icons.auto_stories, size: 20, color: AppTheme.sacredGold),
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _filteredEntries.length + (_hasMoreData ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _filteredEntries.length) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: _isLoadingMore
+                              ? const CircularProgressIndicator(color: AppTheme.sacredRed)
+                              : ElevatedButton.icon(
+                                  onPressed: _loadMoreData,
+                                  icon: const Icon(Icons.expand_more),
+                                  label: const Text('Cargar más'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.sacredRed,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
                                     ),
-                                    Expanded(
-                                      child: Container(
-                                        width: 2,
-                                        color: AppTheme.sacredGold.withOpacity(0.3),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      );
+                    }
+
+                    final entry = _filteredEntries[index];
+                    
+                    // Simple logic to show year header if it changes could be added here
+                    // For now, replicating the design style (timeline)
+                    
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Timeline Line
+                          Column(
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 24),
+                                child: Icon(Icons.auto_stories, size: 20, color: AppTheme.sacredGold),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  width: 2,
+                                  color: AppTheme.sacredGold.withOpacity(0.3),
+                                ),
+                              ),
+                            ],
+                          ),
+                        const SizedBox(width: 16),
+                        
+                        // Content
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 32.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header: Reference + Icon + Date
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () => _showBibleText(entry.gospelQuote),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            entry.gospelQuote,
+                                            style: GoogleFonts.montserrat(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.sacredRed,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(Icons.open_in_new, size: 14, color: AppTheme.sacredGold),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                              const SizedBox(width: 16),
-                              
-                              // Content
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 32.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Header: Reference + Icon + Date
-                                      Row(
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () => _showBibleText(entry.gospelQuote),
-                                            child: Row(
-                                              children: [
-                                                Text(
-                                                  entry.gospelQuote,
-                                                  style: GoogleFonts.montserrat(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppTheme.sacredRed,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Icon(Icons.open_in_new, size: 14, color: AppTheme.sacredGold),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatDate(entry.date),
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          color: AppTheme.sacredDark.withOpacity(0.6),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      
-                                      // Highlighted Text (if any)
-                                      if (entry.highlightedText != null && entry.highlightedText!.isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.all(16),
-                                          margin: const EdgeInsets.only(bottom: 12),
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.sacredGold.withOpacity(0.15),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border(left: BorderSide(color: AppTheme.sacredGold, width: 4)),
-                                          ),
-                                          child: Text(
-                                            '"${entry.highlightedText}"',
-                                            style: GoogleFonts.merriweather(
-                                              fontStyle: FontStyle.italic,
-                                              fontSize: 14,
-                                              color: AppTheme.sacredDark.withOpacity(0.8),
-                                            ),
-                                          ),
-                                        ),
-                                      
-                                      // Reflection
-                                      if (entry.reflection.trim().isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(16),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withOpacity(0.05),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            entry.reflection,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 15,
-                                              height: 1.5,
-                                              color: AppTheme.sacredDark,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatDate(entry.date),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: AppTheme.sacredDark.withOpacity(0.6),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ));
-                        },
-                      ),
+                                const SizedBox(height: 12),
+                                
+                                // Highlighted Text (if any)
+                                if (entry.highlightedText != null && entry.highlightedText!.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.sacredGold.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border(left: BorderSide(color: AppTheme.sacredGold, width: 4)),
+                                    ),
+                                    child: Text(
+                                      '"${entry.highlightedText}"',
+                                      style: GoogleFonts.merriweather(
+                                        fontStyle: FontStyle.italic,
+                                        fontSize: 14,
+                                        color: AppTheme.sacredDark.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ),
+                                
+                                // Reflection
+                                if (entry.reflection.trim().isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      entry.reflection,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 15,
+                                        height: 1.5,
+                                        color: AppTheme.sacredDark,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    // Load More Button
-                    if (_hasMoreData)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: _isLoadingMore
-                            ? const CircularProgressIndicator(color: AppTheme.sacredRed)
-                            : ElevatedButton.icon(
-                                onPressed: _loadMoreData,
-                                icon: const Icon(Icons.expand_more),
-                                label: const Text('Cargar más'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.sacredRed,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                      ),
-                  ],
+                  );
+                  },
                 ),
+
     );
   }
 }

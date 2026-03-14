@@ -5,7 +5,8 @@ import '../providers/auth_provider.dart';
 import '../constants/app_data.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final bool initialLoginMode;
+  const AuthScreen({super.key, this.initialLoginMode = true});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -31,6 +32,12 @@ class _AuthScreenState extends State<AuthScreen> {
   );
 
   bool _isPasswordVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLoginMode = widget.initialLoginMode;
+  }
 
   @override
   void dispose() {
@@ -204,6 +211,7 @@ class _AuthScreenState extends State<AuthScreen> {
           );
 
     if (success && mounted) {
+      Navigator.of(context).pop();
       // AuthProvider has already called notifyListeners()
       // The Consumer in MainNavigation will rebuild and show the main app
       return; // Just return, the UI will update automatically

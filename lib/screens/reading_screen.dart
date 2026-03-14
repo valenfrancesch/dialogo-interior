@@ -15,8 +15,12 @@ import '../repositories/prayer_repository.dart';
 import '../services/notification_service.dart';
 import '../services/cache_manager.dart';
 import '../utils/text_formatter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart' as custom_auth;
 import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatform
 import '../constants/app_data.dart';
+import 'auth_screen.dart';
 
 class ReadingScreen extends StatefulWidget {
   final GospelData? gospel;
@@ -142,6 +146,35 @@ class _ReadingScreenState extends State<ReadingScreen> {
   }
 }
 
+class _SliverTabHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _SliverTabHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabHeaderDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
+  }
+}
+
 class _ReadingContent extends StatefulWidget {
   final GospelData gospel;
   final bool showBackButton;
@@ -171,6 +204,106 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   final FocusNode _reflectionFocusNode = FocusNode();
   final FocusNode _purposeFocusNode = FocusNode();
 
+  bool get _isGuest => !Provider.of<custom_auth.AuthProvider>(context, listen: false).isAuthenticated;
+
+  void _showGuestBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Guarda tu diálogo interior ❤️',
+              style: GoogleFonts.montserrat(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.sacredRed,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Empieza a construir tu diario espiritual. Crea una cuenta sin costo para registrar tus propósitos de cada día y mantener tus reflexiones siempre seguras contigo, vayas donde vayas.',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: AppTheme.sacredDark.withOpacity(0.8),
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AuthScreen(initialLoginMode: false)),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentMint,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text('Crear cuenta gratis', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AuthScreen(initialLoginMode: true)),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppTheme.accentMint),
+                foregroundColor: AppTheme.accentMint,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Ya tengo cuenta', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Quizás más tarde',
+                style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.5)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onHighlightSelected(String text, {bool scheduleReminder = false}) {
+    if (_isGuest) {
+      _showGuestBottomSheet();
+    } else {
+      setState(() {
+        _highlightedText = text;
+      });
+      if (scheduleReminder) {
+        NotificationService().scheduleFavoriteReminder(text, 20, 0);
+      }
+      _saveReflection();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -194,20 +327,24 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     // Default to Gospel (index of 'Evangelio')
     _selectedIndex = _tabs.indexOf('Evangelio');
     
-    // Cache spiritual flashback (history) until end of day
-    final historyCacheKey = CacheKeys.forDate(CacheKeys.readingHistory, widget.gospel.date);
-    final cachedHistory = _cache.get<List<PrayerEntry>>(historyCacheKey);
-    
-    if (cachedHistory != null) {
-      _historyFuture = Future.value(cachedHistory);
+    if (_isGuest) {
+      _historyFuture = Future.value([]);
     } else {
-      _historyFuture = _prayerRepository.getHistoryByGospel(widget.gospel.title).then((history) {
-        _cache.setUntilEndOfDay(historyCacheKey, history);
-        return history;
-      });
+      // Cache spiritual flashback (history) until end of day
+      final historyCacheKey = CacheKeys.forDate(CacheKeys.readingHistory, widget.gospel.date);
+      final cachedHistory = _cache.get<List<PrayerEntry>>(historyCacheKey);
+      
+      if (cachedHistory != null) {
+        _historyFuture = Future.value(cachedHistory);
+      } else {
+        _historyFuture = _prayerRepository.getHistoryByGospel(widget.gospel.title).then((history) {
+          _cache.setUntilEndOfDay(historyCacheKey, history);
+          return history;
+        });
+      }
+      
+      _loadSavedReflection();
     }
-    
-    _loadSavedReflection();
   }
 
   Future<void> _loadSavedReflection() async {
@@ -440,50 +577,70 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildHeader(),
-        // Navigation Toggle
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextSegmentToggle(
-            segments: _tabLabels,
-            initialIndex: _selectedIndex,
-            onChanged: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
+    Provider.of<custom_auth.AuthProvider>(context); // Trigger rebuild on auth changes
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        SliverToBoxAdapter(
+          child: _buildHeader(),
+        ),
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _SliverTabHeaderDelegate(
+            minHeight: 66, // Matches the height of the toggle + padding
+            maxHeight: 66,
+            child: Container(
+              color: AppTheme.primaryDarkBg,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: TextSegmentToggle(
+                segments: _tabLabels,
+                initialIndex: _selectedIndex,
+                onChanged: (index) {
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+              ),
+            ),
           ),
         ),
-        
-        Expanded(
-          child: _buildCurrentContent(),
-        ),
       ],
+      body: _buildCurrentContent(),
     );
   }
 
   Widget _buildCurrentContent() {
     final currentTab = _tabs[_selectedIndex];
+    Widget readingContent;
 
     if (currentTab == '1ª Lectura') {
-      return _buildReadingTab(widget.gospel.firstReading, widget.gospel.firstReadingReference);
-    }
-    if (currentTab == 'Salmo') {
-      return _buildPsalmTab(widget.gospel.psalm, widget.gospel.psalmReference);
-    }
-    if (currentTab == '2ª Lectura') {
-      return _buildReadingTab(widget.gospel.secondReading!, widget.gospel.secondReadingReference!);
-    }
-    if (currentTab == 'Evangelio') {
-      return _buildGospelTab();
-    }
-    if (currentTab == 'Comentario') {
-      return _buildCommentaryTab();
+      readingContent = _buildReadingTab(widget.gospel.firstReading, widget.gospel.firstReadingReference);
+    } else if (currentTab == 'Salmo') {
+      readingContent = _buildPsalmTab(widget.gospel.psalm, widget.gospel.psalmReference);
+    } else if (currentTab == '2ª Lectura') {
+      readingContent = _buildReadingTab(widget.gospel.secondReading!, widget.gospel.secondReadingReference!);
+    } else if (currentTab == 'Evangelio') {
+      readingContent = _buildGospelTab();
+    } else if (currentTab == 'Comentario') {
+      readingContent = _buildCommentaryTab();
+    } else {
+      readingContent = const SizedBox.shrink();
     }
 
-    return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            readingContent,
+            _buildReflectionInputSection(),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildHeader() {
@@ -493,55 +650,80 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       bottom: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      color: AppTheme.primaryDarkBg,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (widget.showBackButton)
-            IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: AppTheme.accentMint, size: 20),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          if (widget.showBackButton)
-            const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        color: AppTheme.primaryDarkBg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Branding Header (Logo + Title)
+            Row(
               children: [
-                _buildPrepareHeartButton(),
-                if (widget.gospel.feast != null && widget.gospel.feast!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      widget.gospel.feast!.toUpperCase(),
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.accentMint,
-                        letterSpacing: 1.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 32,
+                  width: 32,
+                ),
+                const SizedBox(width: 12),
                 Text(
-                  dateStr,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppTheme.sacredDark.withOpacity(0.7), // Fixed text color
+                  'Diálogo interior',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.sacredRed,
                   ),
                 ),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.share, color: AppTheme.accentMint, size: 20),
-            onPressed: _shareReflection,
-          ),
-        ],
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (widget.showBackButton)
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: AppTheme.accentMint, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                if (widget.showBackButton)
+                  const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPrepareHeartButton(),
+                      if (widget.gospel.feast != null && widget.gospel.feast!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            widget.gospel.feast!.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.accentMint,
+                              letterSpacing: 1.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      Text(
+                        dateStr,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppTheme.sacredDark.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.share, color: AppTheme.accentMint, size: 20),
+                  onPressed: _shareReflection,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildPrepareHeartButton() {
@@ -611,13 +793,13 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
               // 2. Recomendaciones
                 _buildRecommendationItem(
                   "🤫",
-                  "Haz silencio:",
-                  "Acalla los ruidos de fuera, pero sobre todo los pensamientos de dentro.",
+                  "Hacé silencio:",
+                  "Acallá los ruidos de fuera, pero sobre todo los pensamientos de dentro.",
                 ),
                 const SizedBox(height: 16),
                 _buildRecommendationItem(
                   "🔕",
-                  "Desconéctate:",
+                  "Desconectate:",
                   "Para una mejor experiencia, te sugerimos silenciar las notificaciones durante este momento.",
                 ),
               const SizedBox(height: 16),
@@ -734,141 +916,178 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     return BoxDecoration(
       color: AppTheme.cardDark,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3), width: 1), // Updated border color
+      boxShadow: [
+        BoxShadow(
+          color: AppTheme.sacredDark.withOpacity(0.04),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 
   Widget _buildReadingTab(String text, String reference) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20), // Matched padding with others
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center, // Reference centered
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              reference,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.montserrat(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.sacredDark, // Fixed text color
-              ),
-            ),
-          ),
+    const String sourceString = 'Extraído de la Biblia: Libro del Pueblo de Dios';
+    final bool hasSource = text.contains(sourceString);
+    final String cleanText = text.replaceFirst(sourceString, '').trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: _cardDecoration(), // Added card decoration
-            child: SelectableTextContent(
-              text: TextFormatter.formatReadingText(text),
-              textStyle: GoogleFonts.inter(
-                fontSize: 16,
-                height: 1.8,
-                color: AppTheme.sacredDark.withOpacity(0.9), // Fixed text color
-              ),
-              onHighlight: (_) {},
+            decoration: _cardDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reference,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.sacredDark,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SelectableTextContent(
+                  text: TextFormatter.formatReadingText(cleanText),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 16,
+                    height: 1.8,
+                    color: AppTheme.sacredDark.withOpacity(0.9),
+                  ),
+                  highlightedText: _highlightedText,
+                  onHighlight: _onHighlightSelected,
+                ),
+                if (hasSource) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    sourceString,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppTheme.sacredDark.withOpacity(0.4),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 40),
         ],
-      ),
     );
   }
 
   Widget _buildPsalmTab(String text, String reference) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20), // Matched padding
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-           Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              reference,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.montserrat(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.sacredDark, // Fixed text color
-              ),
-            ),
-          ),
+    const String sourceString = 'Extraído de la Biblia: Libro del Pueblo de Dios';
+    final bool hasSource = text.contains(sourceString);
+    final String cleanText = text.replaceFirst(sourceString, '').trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: _cardDecoration(), // Added card decoration
-            child: SelectableTextContent(
-              text: TextFormatter.formatPsalm(text),
-              textStyle: GoogleFonts.inter(
-                fontSize: 16,
-                height: 1.8,
-                color: AppTheme.sacredDark.withOpacity(0.9), // Fixed text color
-                fontStyle: FontStyle.italic,
-              ),
-              onHighlight: (_) {},
+            decoration: _cardDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reference,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.sacredDark,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SelectableTextContent(
+                  text: TextFormatter.formatPsalm(cleanText),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 16,
+                    height: 1.8,
+                    color: AppTheme.sacredDark.withOpacity(0.9),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  highlightedText: _highlightedText,
+                  onHighlight: _onHighlightSelected,
+                ),
+                if (hasSource) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    sourceString,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppTheme.sacredDark.withOpacity(0.4),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 40),
         ],
-      ),
     );
   }
 
   Widget _buildGospelTab() {
-    return GestureDetector(
-      onTap: () {
-        // Unfocus any active text field when tapping outside
-        FocusScope.of(context).unfocus();
-      },
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-              child: Text(
-                widget.gospel.title,
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.sacredDark, // Fixed text color
+    const String sourceString = 'Extraído de la Biblia: Libro del Pueblo de Dios';
+    final String text = widget.gospel.evangeliumText;
+    final bool hasSource = text.contains(sourceString);
+    final String cleanText = text.replaceFirst(sourceString, '').trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: _cardDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.gospel.title,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.sacredDark,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: _cardDecoration(), // Updated to shared decoration
-                    child: SelectableTextContent(
-                      text: TextFormatter.formatReadingText(widget.gospel.evangeliumText),
-                      textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.8), // Fixed text color
-                      highlightedText: _highlightedText,
-                      onHighlight: (text) {
-                        setState(() => _highlightedText = text);
-                        _saveReflection();
-                      },
+                const SizedBox(height: 16),
+                SelectableTextContent(
+                  text: TextFormatter.formatReadingText(cleanText),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: AppTheme.sacredDark.withOpacity(0.9),
+                    height: 1.8,
+                  ),
+                  highlightedText: _highlightedText,
+                  onHighlight: _onHighlightSelected,
+                ),
+                if (hasSource) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    sourceString,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppTheme.sacredDark.withOpacity(0.4),
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
-                  
-                   _buildReflectionInputSection(),
                 ],
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        ],
     );
   }
 
   Widget _buildCommentaryTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
            Container(
             padding: const EdgeInsets.all(16),
             decoration: _cardDecoration(), // Updated to shared decoration
@@ -881,12 +1100,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                    text: widget.gospel.commentBody,
                    textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.8), // Fixed color
                    highlightedText: _highlightedText,
-                   onHighlight: (text) {
-                     setState(() => _highlightedText = text);
-                     NotificationService().scheduleFavoriteReminder(text, 20, 0);
-                     _saveReflection();
-                   },
-                 ),
+                    onHighlight: (text) => _onHighlightSelected(text, scheduleReminder: true),
+                  ),
                  const SizedBox(height: 16),
                  Column(
                    crossAxisAlignment: CrossAxisAlignment.start,
@@ -898,10 +1113,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                ],
              ),
            ),
-           _buildReflectionInputSection(),
         ],
-      ),
-    );
+      );
   }
 
   Widget _buildReflectionInputSection() {
@@ -951,25 +1164,28 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
          ),
          const SizedBox(height: 12),
          TextField(
-           controller: _responseController,
-           focusNode: _reflectionFocusNode,
-           maxLines: 5,
-           minLines: 3,
+            controller: _responseController,
+            focusNode: _reflectionFocusNode,
+            maxLines: 5,
+            minLines: 3,
+            readOnly: _isGuest,
+            onTap: _isGuest ? _showGuestBottomSheet : null,
            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark), // Fixed color
            decoration: InputDecoration(
              hintText: 'Escribe tu reflexión personal...',
              hintStyle: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark.withOpacity(0.3)), // Fixed color
              filled: true,
              fillColor: AppTheme.cardDark,
-             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.sacredGold)),
-             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.sacredGold.withOpacity(0.3))),
+             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
            ),
          ),
          const SizedBox(height: 16),
-         /* Saved Button Removed for Autosave */
-         const SizedBox(height: 16),
+          const SizedBox(height: 16),
+          /* Saved Button Removed for Autosave */
+          const SizedBox(height: 16),
 
           // Sección de Propósito
           Text(
@@ -977,13 +1193,15 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
             style: GoogleFonts.montserrat(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppTheme.sacredGold,
+              color: AppTheme.accentMint,
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _purposeController,
             focusNode: _purposeFocusNode,
+            readOnly: _isGuest,
+            onTap: _isGuest ? _showGuestBottomSheet : null,
             style: GoogleFonts.inter(
               fontSize: 14,
               color: AppTheme.sacredDark,
@@ -993,24 +1211,24 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
               hintText: 'Escribe un propósito concreto...',
               hintStyle: GoogleFonts.inter(
                 fontSize: 14,
-                color: AppTheme.sacredDark.withOpacity(0.4),
+                color: AppTheme.sacredDark.withOpacity(0.3),
                 fontStyle: FontStyle.italic,
               ),
               filled: true,
-              fillColor: AppTheme.sacredGold.withOpacity(0.1),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.sacredGold)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.sacredGold.withOpacity(0.3))),
+              fillColor: AppTheme.cardDark,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              prefixIcon: const Icon(Icons.stars, color: AppTheme.sacredGold),
+              prefixIcon: const Icon(Icons.stars, color: AppTheme.accentMint),
             ),
             maxLines: 2,
             minLines: 1,
           ),
           const SizedBox(height: 32),
-
-         if (_selectedIndex == _tabs.indexOf('Evangelio') || _selectedIndex == _tabs.indexOf('Comentario')) // Only show history on main gospel-related tabs
-            _buildMemoriaEspiritualSection(),
+          const SizedBox(height: 32),
+          _buildMemoriaEspiritualSection(),
+          const SizedBox(height: 32),
          const SizedBox(height: 32),
       ],
     );
@@ -1019,9 +1237,9 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   Widget _buildSaveStatusIndicator() {
     switch (_saveStatus) {
       case 'saving':
-        return const Icon(Icons.sync, color: AppTheme.accentMint, size: 20);
+        return const Icon(Icons.sync, color: AppTheme.sacredGold, size: 20);
       case 'saved':
-        return const Icon(Icons.cloud_done, color: AppTheme.accentMint, size: 20);
+        return const Icon(Icons.cloud_done, color: AppTheme.sacredGold, size: 20);
       case 'error':
         return const Icon(Icons.cloud_off, color: Colors.red, size: 20);
       default:
@@ -1040,10 +1258,12 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         } else if (snapshot.data == null || snapshot.data!.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(20),
-            decoration: _cardDecoration(), // Shared decoration
+            decoration: _cardDecoration().copyWith(
+              color: const Color(0xFFEBE8E3),
+            ),
             child: Row(
               children: [
-                const Icon(Icons.auto_stories, color: AppTheme.accentMint, size: 32),
+                const Icon(Icons.auto_stories, color: AppTheme.sacredRed, size: 32),
                 const SizedBox(width: 16),
                 Expanded(child: Text('Esta es la primera vez que reflexionas sobre este evangelio. ¡Qué emocionante comenzar este camino espiritual!', style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.6))), // Fixed color
               ],
@@ -1054,10 +1274,12 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
           if (entries.length <= 1) {
              return Container(
                 padding: const EdgeInsets.all(20),
-                decoration: _cardDecoration(), // Shared decoration
+                decoration: _cardDecoration().copyWith(
+                  color: const Color(0xFFEBE8E3),
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.auto_stories, color: AppTheme.accentMint, size: 32),
+                    const Icon(Icons.auto_stories, color: AppTheme.sacredRed, size: 32),
                     const SizedBox(width: 16),
                     Expanded(child: Text('Esta es la primera vez que reflexionas sobre este evangelio.', style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.6))), // Fixed color
                   ],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart' as custom_auth;
 import '../theme/app_theme.dart';
 import '../widgets/statistics_card.dart';
 import '../widgets/diary_entry_card.dart';
@@ -17,6 +19,7 @@ import '../services/bible_service.dart';
 import '../models/gospel_data.dart';
 import 'gospel_reflections_screen.dart';
 
+import 'auth_screen.dart';
 import '../widgets/global_error_widget.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -52,6 +55,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   void initState() {
     super.initState();
+    if (FirebaseAuth.instance.currentUser == null) return;
+    
     _statisticsService = LibraryStatisticsService(
       prayerRepository: _prayerRepository,
     );
@@ -254,31 +259,60 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<custom_auth.AuthProvider>(context);
+    if (!authProvider.isAuthenticated) {
+      return _buildGuestEmptyState();
+    }
     return Scaffold(
-      backgroundColor: AppTheme.sacredCream, // Updated background
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Icon(Icons.auto_stories, color: AppTheme.accentMint, size: 28),
-        title: Text(
-          'Biblioteca de Fe',
-          style: GoogleFonts.montserrat(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.sacredRed, // Updated title color
-          ),
-        ),
-      ),
-      body: _hasError && _allEntries.isEmpty 
-        ? GlobalErrorWidget(
-            onRetry: _loadInitialData,
-            message: 'No pudimos cargar tu biblioteca. Por favor, verifica tu conexión.',
-          )
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      backgroundColor: AppTheme.sacredCream,
+      body: SafeArea(
+        child: _hasError && _allEntries.isEmpty 
+          ? GlobalErrorWidget(
+              onRetry: _loadInitialData,
+              message: 'No pudimos cargar tu biblioteca. Por favor, verifica tu conexión.',
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Branding Header (Logo + Title)
+                  Row(
+                    children: [
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 32,
+                        width: 32,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Diálogo interior',
+                        style: GoogleFonts.montserrat(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.sacredRed,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Screen Title
+                  Row(
+                    children: [
+                      const Icon(Icons.auto_stories, color: AppTheme.accentMint, size: 28),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Biblioteca de Fe',
+                        style: GoogleFonts.montserrat(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.sacredRed,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
 
                 // 1. LOS SANTOS EVANGELIOS
@@ -308,6 +342,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ],
             ),
           ),
+        ),
     );
   }
 
@@ -434,6 +469,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     label: 'Racha Actual',
                     mainValue: '...',
                     secondaryValue: 'cargando',
+                    backgroundColor: const Color(0xFFEED9D9),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -443,6 +479,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     label: 'Reflexiones',
                     mainValue: '...',
                     secondaryValue: 'cargando',
+                    backgroundColor: const Color(0xFFEBE8E3),
                   ),
                 ),
               ],
@@ -470,8 +507,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   child: StatisticsCard(
                     icon: Icons.local_fire_department,
                     label: 'Racha Actual',
-                    mainValue: '${streakData.daysStreak} días',
+                    mainValue: '${streakData.daysStreak}',
+                    mainValueSuffix: 'días',
                     secondaryValue: '+${streakData.percentageVsLastMonth.toStringAsFixed(1)}% vs mes anterior',
+                    backgroundColor: const Color(0xFFEED9D9),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -480,7 +519,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     icon: Icons.book,
                     label: 'Reflexiones',
                     mainValue: reflectionData.totalReflections.toString(),
+                    mainValueSuffix: 'totales',
                     secondaryValue: '+${reflectionData.thisMonthCount} este mes',
+                    backgroundColor: const Color(0xFFEBE8E3),
                     onTap: () {
                       Scrollable.ensureVisible(
                         _diarySectionKey.currentContext!,
@@ -498,113 +539,121 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildCalendarSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              _formatMonthYear(_displayedMonth),
-              style: GoogleFonts.montserrat(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.sacredDark, // Updated text color
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFBFA), // Slightly lighter/warmer than sacredCream
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.sacredDark.withOpacity(0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatMonthYear(_displayedMonth),
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.sacredDark,
+                ),
               ),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left, color: AppTheme.accentMint),
-                  onPressed: () => _changeMonth(-1),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, color: AppTheme.accentMint),
-                  onPressed: () => _changeMonth(1),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Header de días de la semana
-        GridView.count(
-          crossAxisCount: 7,
-          childAspectRatio: 1.2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-              .map(
-                (day) => Center(
-                  child: Text(
-                    day,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.sacredDark.withOpacity(0.6), // Updated text color
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: AppTheme.sacredDark, size: 28),
+                    onPressed: () => _changeMonth(-1),
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: AppTheme.sacredDark, size: 28),
+                    onPressed: () => _changeMonth(1),
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          // Header de días de la semana - Sunday First
+          GridView.count(
+            crossAxisCount: 7,
+            childAspectRatio: 1,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: ['D', 'L', 'M', 'X', 'J', 'V', 'S']
+                .map(
+                  (day) => Center(
+                    child: Text(
+                      day,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.sacredRed.withOpacity(0.5), // Match the brownish/red color
+                      ),
                     ),
                   ),
-                ),
-              )
-              .toList(),
-        ),
-        // Calendario de días
-        GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            childAspectRatio: 0.9,
+                )
+                .toList(),
           ),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 42,
-          itemBuilder: (context, index) {
-            
-            final firstDayOfMonth = DateTime(_displayedMonth.year, _displayedMonth.month, 1);
-            final firstWeekday = firstDayOfMonth.weekday; // 1 = Mon, 7 = Sun
-       
-            int day = index - (firstWeekday - 1) + 1;
-            int daysInMonth = DateUtils.getDaysInMonth(_displayedMonth.year, _displayedMonth.month);
-            
-            bool visible = day > 0 && day <= daysInMonth;
-            bool hasEntry = visible && _daysWithEntries.contains(day);
-            bool isToday = visible && 
-                          day == DateTime.now().day && 
-                          _displayedMonth.month == DateTime.now().month && 
-                          _displayedMonth.year == DateTime.now().year;
-
-            // Calculate if the day is disabled (more than 30 days away and no entry)
-            bool isDisabled = false;
-            if (visible) {
-              final currentDate = DateTime(_displayedMonth.year, _displayedMonth.month, day);
-              final today = DateTime.now();
-              // Calculate difference in days. Note: simple difference might be off by hours, so strip time.
-              final dateOnly = DateTime(currentDate.year, currentDate.month, currentDate.day);
-              final todayOnly = DateTime(today.year, today.month, today.day);
-              final diff = dateOnly.difference(todayOnly).inDays.abs();
+          const SizedBox(height: 8),
+          // Calendario de días
+          GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1,
+            ),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 42, // Always show 6 rows for consistency
+            itemBuilder: (context, index) {
+              final firstDayOfMonth = DateTime(_displayedMonth.year, _displayedMonth.month, 1);
+              final int offset = firstDayOfMonth.weekday % 7;
               
-              if (diff > 30 && !hasEntry) {
-                isDisabled = true;
-              }
-            }
+              // Calculate the actual date for this cell
+              final DateTime cellDate = firstDayOfMonth.add(Duration(days: index - offset));
+              final bool isCurrentMonth = cellDate.month == _displayedMonth.month;
+              
+              bool hasEntry = isCurrentMonth && _daysWithEntries.contains(cellDate.day);
+              bool isToday = cellDate.day == DateTime.now().day && 
+                            cellDate.month == DateTime.now().month && 
+                            cellDate.year == DateTime.now().year;
 
-            return visible
-                ? CalendarDay(
-                    day: day,
-                    hasEntry: hasEntry,
-                    isToday: isToday,
-                    isDisabled: isDisabled,
-                    onTap: isDisabled 
-                      ? () {} // Do nothing if disabled
-                      : () => _loadGospelForDate(DateTime(_displayedMonth.year, _displayedMonth.month, day)),
-                  )
-                : const SizedBox.shrink();
-          },
-        ),
-      ],
+              // Disable if out of range and no entry
+              bool isDisabled = false;
+              if (isCurrentMonth) {
+                final today = DateTime.now();
+                final dateOnly = DateTime(cellDate.year, cellDate.month, cellDate.day);
+                final todayOnly = DateTime(today.year, today.month, today.day);
+                final diff = dateOnly.difference(todayOnly).inDays.abs();
+                if (diff > 30 && !hasEntry) isDisabled = true;
+              }
+
+              return CalendarDay(
+                day: cellDate.day,
+                hasEntry: hasEntry,
+                isToday: isToday,
+                isDisabled: isDisabled,
+                isCurrentMonth: isCurrentMonth,
+                onTap: isDisabled 
+                  ? () {} 
+                  : () => _loadGospelForDate(cellDate),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -748,15 +797,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
         else
           ...[
             ..._allEntries.map(
-              (entry) => DiaryEntryCard(
-                date: _formatDate(entry.date),
-                passage: entry.gospelQuote,
-                title: 'Reflexión del día',
-                excerpt: entry.reflection,
-                onTap: () {
-                   _loadGospelForDate(entry.date);
-                },
-              ),
+              (entry) {
+                String excerpt = "";
+                bool isItalic = false;
+
+                if (entry.reflection.isNotEmpty) {
+                  excerpt = entry.reflection;
+                } else if (entry.highlightedText != null && entry.highlightedText!.isNotEmpty) {
+                  excerpt = '"${entry.highlightedText}"';
+                  isItalic = true;
+                } else if (entry.purpose != null && entry.purpose!.isNotEmpty) {
+                  excerpt = 'Propósito: ${entry.purpose}';
+                } else {
+                  excerpt = 'Sin reflexión guardada';
+                }
+
+                return DiaryEntryCard(
+                  date: _formatDate(entry.date),
+                  passage: entry.gospelQuote,
+                  excerpt: excerpt,
+                  isItalic: isItalic,
+                  onTap: () {
+                    _loadGospelForDate(entry.date);
+                  },
+                );
+              },
             ),
             // Load More Button
             if (_hasMoreData)
@@ -788,4 +853,79 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  Widget _buildGuestEmptyState() {
+    return Scaffold(
+      backgroundColor: AppTheme.primaryDarkBg,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentMint.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.auto_stories,
+                  size: 80,
+                  color: AppTheme.accentMint,
+                ),
+              ),
+              const SizedBox(height: 48),
+              Text(
+                'Tu Biblioteca de Fe te espera',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.montserrat(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.sacredRed,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Aquí se guardarán tus rachas de lectura, tu diario de reflexiones y los versículos que más tocaron tu corazón.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: AppTheme.sacredDark.withOpacity(0.7),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 48),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AuthScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentMint,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Inicia sesión para empezar',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

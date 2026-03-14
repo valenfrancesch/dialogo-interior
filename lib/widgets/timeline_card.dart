@@ -91,12 +91,8 @@ class _TimelineCardState extends State<TimelineCard> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.sacredGold.withOpacity(0.15),
+                            color: AppTheme.sacredGold.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AppTheme.sacredGold,
-                              width: 1,
-                            ),
                           ),
                           child: Text(
                             'PRIMERA',
@@ -162,12 +158,8 @@ class _TimelineCardState extends State<TimelineCard> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.sacredGold.withOpacity(0.1),
+                        color: AppTheme.sacredGold.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.sacredGold.withOpacity(0.3),
-                          width: 1,
-                        ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,

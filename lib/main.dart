@@ -64,13 +64,8 @@ class MyApp extends StatelessWidget {
               );
             }
             
-            // If user is authenticated, show main navigation
-            if (snapshot.hasData && snapshot.data != null) {
-              return const MainNavigation();
-            }
-            
-            // If not authenticated, show auth screen
-            return const AuthScreen();
+            // Always show MainNavigation now, guest status will be handled per screen
+            return MainNavigation(key: ValueKey(snapshot.data?.uid));
           },
         ),
       ),

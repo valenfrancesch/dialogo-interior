@@ -17,40 +17,13 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _screens = const [
     ReadingScreen(),
     LibraryScreen(),
+    SettingsScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.primaryDarkBg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/logo.png',
-              height: 32,
-              width: 32,
-            ),
-            const SizedBox(width: 12),
-            const Text('Diálogo interior'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppTheme.cardDark,
@@ -68,6 +41,10 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(
             icon: Icon(Icons.library_books),
             label: 'Biblioteca',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Ajustes',
           ),
         ],
       ),

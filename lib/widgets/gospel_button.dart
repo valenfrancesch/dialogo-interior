@@ -25,12 +25,8 @@ class GospelButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
         decoration: BoxDecoration(
-          color: AppTheme.sacredCream, // Using the cream background
+          color: Colors.white, // White background
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.sacredGold.withOpacity(0.5),
-            width: 1,
-          ),
           boxShadow: [
             BoxShadow(
               color: AppTheme.sacredGold.withOpacity(0.1),

@@ -5,17 +5,17 @@ import '../theme/app_theme.dart';
 class DiaryEntryCard extends StatelessWidget {
   final String date;
   final String passage;
-  final String title;
   final String excerpt;
   final VoidCallback onTap;
+  final bool isItalic;
 
   const DiaryEntryCard({
     super.key,
     required this.date,
     required this.passage,
-    required this.title,
     required this.excerpt,
     required this.onTap,
+    this.isItalic = false,
   });
 
   @override
@@ -26,12 +26,15 @@ class DiaryEntryCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark, // Mapped to Colors.white
+          color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.sacredGold.withOpacity(0.3), // Visible border
-            width: 1,
-          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.sacredDark.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,29 +63,17 @@ class DiaryEntryCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Título
-            Text(
-              title,
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.sacredDark, // Visible title
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-
             // Excerpt
             Text(
               excerpt,
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
+                fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
                 color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
                 height: 1.5,
               ),
-              maxLines: 2,
+              maxLines: 4, // Increased maxLines since title is gone
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 12),
