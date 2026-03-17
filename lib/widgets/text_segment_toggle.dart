@@ -40,6 +40,7 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFFEBE8E3),

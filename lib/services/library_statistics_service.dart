@@ -57,9 +57,13 @@ class LibraryStatisticsService {
     try {
       final stats = await _getStatsWithCache();
       final streak = stats['streak'] as int;
+      final thisMonthCount = stats['thisMonth'] as int;
       
-      // Calcula porcentaje vs mes anterior
-      final percentageVsLastMonth = await _calculateStreakGrowthPercentage();
+      // Calcula porcentaje vs mes anterior usando conteo de reflexiones
+      final percentageVsLastMonth = await _calculateMonthlyGrowthPercentage(
+        thisMonthCount,
+        DateTime(DateTime.now().year, DateTime.now().month, 1),
+      );
 
       return StreakData(
         daysStreak: streak,
@@ -68,24 +72,6 @@ class LibraryStatisticsService {
       );
     } catch (e) {
       throw Exception('Error al calcular racha: $e');
-    }
-  }
-
-  /// Calcula el crecimiento de la racha respecto al mes anterior
-  /// Obtiene el valor guardado en el documento de perfil del usuario
-  Future<double> _calculateStreakGrowthPercentage() async {
-    try {
-      // Simulación: En producción, obtendría del documento de perfil
-      // final profileDoc = await _firestore
-      //     .collection('users')
-      //     .doc(userId)
-      //     .get();
-      // final lastMonthStreak = profileDoc['lastMonthStreak'] ?? 0;
-
-      // Por ahora retorna un valor simulado
-      return 2.0; // +2% vs mes anterior
-    } catch (e) {
-      return 0.0;
     }
   }
 
@@ -149,7 +135,7 @@ class LibraryStatisticsService {
       final lastMonthSnapshot = await lastMonthQuery.get();
       final lastMonthCount = lastMonthSnapshot.count ?? 0;
 
-      if (lastMonthCount == 0) return 0.0;
+      if (lastMonthCount == 0) return currentMonthCount > 0 ? 100.0 : 0.0;
 
       final growth = ((currentMonthCount.toDouble() - lastMonthCount.toDouble()) / lastMonthCount.toDouble()) * 100;
       return growth;

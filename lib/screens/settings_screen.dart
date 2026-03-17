@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import 'privacy_policy.dart';
 import 'about_screen.dart';
 import 'auth_screen.dart';
+import 'profile_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -28,43 +29,52 @@ class SettingsScreen extends StatelessWidget {
       backgroundColor: AppTheme.primaryDarkBg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Branding Header (Logo + Title)
-              Row(
-                children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    height: 32,
-                    width: 32,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Diálogo interior',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.sacredRed,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(
+                  children: [
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 32,
+                      width: 32,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Screen Title
-              Text(
-                'Ajustes',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.sacredDark,
+                    const SizedBox(width: 12),
+                    Text(
+                      'Diálogo interior',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.sacredRed,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
 
-            Text('Cuenta', style: headerStyle),
+              // Screen Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Ajustes',
+                  style: GoogleFonts.inter(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.sacredDark,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Cuenta', style: headerStyle),
+            ),
             const SizedBox(height: 10),
             if (isGuest)
               _buildSettingsTile(
@@ -83,15 +93,21 @@ class SettingsScreen extends StatelessWidget {
                 icon: Icons.person_outline,
                 title: 'Perfil',
                 subtitle: authProvider.userEmail ?? 'Usuario',
-                showChevron: false,
+                showChevron: true,
                 onTap: () {
-                  // TODO: Implementar edición de perfil si es necesario
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                  );
                 },
               ),
             Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
             const SizedBox(height: 20),
             
-            Text('Más información', style: headerStyle),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Más información', style: headerStyle),
+            ),
             const SizedBox(height: 10),
             _buildSettingsTile(
               icon: Icons.shield_outlined,
@@ -129,36 +145,26 @@ class SettingsScreen extends StatelessWidget {
             ),
             Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
             if (!isGuest) ...[
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.sacredRed.withOpacity(0.1),
-                    foregroundColor: AppTheme.sacredRed,
-                    side: const BorderSide(color: AppTheme.sacredRed),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.sacredRed.withOpacity(0.1),
+                      foregroundColor: AppTheme.sacredRed,
+                      side: const BorderSide(color: AppTheme.sacredRed),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
                     ),
-                    elevation: 0,
+                    onPressed: () => _handleLogout(context),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Cerrar sesión', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                  onPressed: () => _handleLogout(context),
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Cerrar sesión', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.sacredDark.withOpacity(0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () => _handleDeleteAccount(context),
-                  icon: const Icon(Icons.delete_forever_outlined, size: 18),
-                  label: const Text('Eliminar mi rastro permanentemente', style: TextStyle(fontSize: 12)),
                 ),
               ),
             ],
@@ -184,7 +190,7 @@ class SettingsScreen extends StatelessWidget {
     bool showChevron = true,
   }) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -227,54 +233,6 @@ class SettingsScreen extends StatelessWidget {
     if (confirm == true) {
       await authProvider.logout();
       // El StreamBuilder en main.dart se encargará de reconstruir MainNavigation con estado de invitado
-    }
-  }
-
-  void _handleDeleteAccount(BuildContext context) async {
-    final authProvider = Provider.of<custom_auth.AuthProvider>(context, listen: false);
-    
-    // Mostrar diálogo de confirmación doble
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        title: const Text('Eliminar Cuenta', style: TextStyle(color: AppTheme.sacredRed)),
-        content: const Text(
-          'Esta acción es IRREVERSIBLE. Se borrarán todas tus reflexiones, estadísticas y tu perfil permanentemente.\n\n¿Estás completamente seguro?',
-          style: TextStyle(color: AppTheme.sacredDark),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: AppTheme.sacredDark)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('SÍ, BORRAR TODO', style: TextStyle(color: AppTheme.sacredRed)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      final success = await authProvider.deleteAccount();
-      if (success) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perfil y cuenta eliminados correctamente.')),
-          );
-        }
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.errorMessage ?? 'Error al eliminar la cuenta. Es posible que debas iniciar sesión nuevamente para realizar esta acción.'),
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
-      }
     }
   }
 

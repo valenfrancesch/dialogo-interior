@@ -71,7 +71,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (cachedStats != null) {
       _statsFuture = Future.value(cachedStats);
     } else {
-      _statsFuture = Future.wait([
+      _statsFuture = Future.wait<dynamic>([
         _statisticsService.calculateCurrentStreak(),
         _statisticsService.calculateReflectionCount(),
       ]).then((stats) {
@@ -85,7 +85,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     // Invalidate cache and reload
     _cache.invalidate(CacheKeys.libraryStats);
     setState(() {
-      _statsFuture = Future.wait([
+      _statsFuture = Future.wait<dynamic>([
         _statisticsService.calculateCurrentStreak(),
         _statisticsService.calculateReflectionCount(),
       ]).then((stats) {

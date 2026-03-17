@@ -203,6 +203,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   late Future<List<PrayerEntry>> _historyFuture;
   final FocusNode _reflectionFocusNode = FocusNode();
   final FocusNode _purposeFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
 
   bool get _isGuest => !Provider.of<custom_auth.AuthProvider>(context, listen: false).isAuthenticated;
 
@@ -387,6 +388,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _reflectionFocusNode.dispose();
     _purposeFocusNode.dispose();
     _responseController.dispose();
@@ -575,36 +577,49 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     return '${date.day} de ${months[date.month - 1]}, ${date.year}';
   }
 
-  @override
   Widget build(BuildContext context) {
     Provider.of<custom_auth.AuthProvider>(context); // Trigger rebuild on auth changes
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) => [
-        SliverToBoxAdapter(
-          child: _buildHeader(),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _SliverTabHeaderDelegate(
-            minHeight: 66, // Matches the height of the toggle + padding
-            maxHeight: 66,
-            child: Container(
-              color: AppTheme.primaryDarkBg,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: TextSegmentToggle(
-                segments: _tabLabels,
-                initialIndex: _selectedIndex,
-                onChanged: (index) {
-                  setState(() {
-                    _selectedIndex = index;
-                  });
-                },
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: NestedScrollView(
+        controller: _scrollController,
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: _buildHeader(),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _SliverTabHeaderDelegate(
+              minHeight: 66, // Matches the height of the toggle + padding
+              maxHeight: 66,
+              child: Container(
+                color: AppTheme.primaryDarkBg,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: TextSegmentToggle(
+                  segments: _tabLabels,
+                  initialIndex: _selectedIndex,
+                  onChanged: (index) {
+                    FocusScope.of(context).unfocus();
+                    _saveReflection();
+                    setState(() {
+                      _selectedIndex = index;
+                    });
+                    if (_scrollController.hasClients) {
+                      _scrollController.animateTo(
+                        0.0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  },
+                ),
               ),
             ),
           ),
-        ),
-      ],
-      body: _buildCurrentContent(),
+        ],
+        body: _buildCurrentContent(),
+      ),
     );
   }
 
@@ -631,6 +646,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         FocusScope.of(context).unfocus();
       },
       child: SingleChildScrollView(
+        key: ValueKey(_selectedIndex),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -645,13 +661,10 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   Widget _buildHeader() {
     String dateStr = _formatDate(widget.gospel.date);
-    return SafeArea(
-      top: true,
-      bottom: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        color: AppTheme.primaryDarkBg,
-        child: Column(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      color: AppTheme.primaryDarkBg,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Branding Header (Logo + Title)
@@ -722,7 +735,6 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -1166,8 +1178,9 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
          TextField(
             controller: _responseController,
             focusNode: _reflectionFocusNode,
-            maxLines: 5,
+            maxLines: null,
             minLines: 3,
+            keyboardType: TextInputType.multiline,
             readOnly: _isGuest,
             onTap: _isGuest ? _showGuestBottomSheet : null,
            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark), // Fixed color
@@ -1182,10 +1195,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
            ),
          ),
-         const SizedBox(height: 16),
-          const SizedBox(height: 16),
-          /* Saved Button Removed for Autosave */
-          const SizedBox(height: 16),
+         const SizedBox(height: 24),
 
           // Sección de Propósito
           Text(
@@ -1218,12 +1228,13 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
               fillColor: AppTheme.cardDark,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               prefixIcon: const Icon(Icons.stars, color: AppTheme.accentMint),
             ),
-            maxLines: 2,
+            maxLines: null,
             minLines: 1,
+            keyboardType: TextInputType.multiline,
           ),
           const SizedBox(height: 32),
           const SizedBox(height: 32),

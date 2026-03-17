@@ -41,7 +41,10 @@ class AboutScreen extends StatelessWidget {
               title: 'Servicio Litúrgico',
               content: 'El calendario y la selección de lecturas diarias siguen el ordenamiento litúrgico de la Iglesia Católica Romana. Datos litúrgicos provistos por Evangelizo.org',
             ),
-            const SizedBox(height: 30),
+            SafeArea(
+              bottom: true,
+              child: const SizedBox(height: 30),
+            ),
           ],
         ),
       ),

@@ -5,9 +5,20 @@ import '../models/gospel_data.dart';
 class GospelRepository {
   static const String _baseUrl = 'https://feed.evangelizo.org/v2/reader.php';
 
+  static GospelData? _cachedGospel;
+  static DateTime? _cachedDate;
+
   /// Obtiene datos completos del evangelio del día y lecturas mediante peticiones paralelas
   static Future<GospelData> fetchGospelData(DateTime date) async {
     try {
+      // Retorna el caché si corresponde al mismo día
+      if (_cachedGospel != null && _cachedDate != null && 
+          _cachedDate!.year == date.year && 
+          _cachedDate!.month == date.month && 
+          _cachedDate!.day == date.day) {
+        return _cachedGospel!;
+      }
+
       final dateStr = _formatDate(date);
 
       // Ejecutar todas las peticiones en paralelo
@@ -38,7 +49,7 @@ class GospelRepository {
         secondReadingText = null;
       }
 
-      return GospelData.fromApiResponses(
+      final gospelData = GospelData.fromApiResponses(
         firstReadingReference: results[0] != 'Lectura del Día' ? results[0] : '1ª Lectura',
         firstReading: results[1],
         psalmReference: results[2] != 'Lectura del Día' ? results[2] : 'Salmo',
@@ -54,6 +65,11 @@ class GospelRepository {
         feast: results[12].isNotEmpty ? results[12] : null,
         date: date,
       );
+
+      _cachedGospel = gospelData;
+      _cachedDate = date;
+
+      return gospelData;
     } catch (e) {
       throw Exception('Error al obtener datos del evangelio: $e');
     }

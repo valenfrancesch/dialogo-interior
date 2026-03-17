@@ -10,8 +10,17 @@ import 'providers/app_providers.dart';
 import 'providers/auth_provider.dart' as custom_auth;
 import 'services/notification_service.dart';
 
+import 'package:flutter/services.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent, // transparent status bar
+      statusBarIconBrightness: Brightness.dark, // text color for the status bar
+    ),
+  );
   
   // Initialize Firebase
   try {
