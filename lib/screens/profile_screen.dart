@@ -11,7 +11,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<custom_auth.AuthProvider>(context);
     final userEmail = authProvider.userEmail ?? 'Usuario';
-    final userName = userEmail.split('@').first;
+    final userName = authProvider.userFullName;
 
     return Scaffold(
       backgroundColor: AppTheme.primaryDarkBg,

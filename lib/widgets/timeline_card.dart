@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/prayer_entry.dart';
 import '../theme/app_theme.dart';
+import 'saved_highlights_widget.dart';
 
 class TimelineCard extends StatefulWidget {
   final String timeLabel;
   final String date;
   final String passage;
   final String fullReflection;
-  final String? highlightedText;
+  final List<Highlight>? highlights;
   final String? purpose;
   final bool isFirstReflection;
 
@@ -17,7 +19,7 @@ class TimelineCard extends StatefulWidget {
     required this.date,
     required this.passage,
     required this.fullReflection,
-    this.highlightedText,
+    this.highlights,
     this.purpose,
     this.isFirstReflection = false,
   });
@@ -107,25 +109,9 @@ class _TimelineCardState extends State<TimelineCard> {
                   ),
                   const SizedBox(height: 12),
                   
-                  // Highlighted Text (if exists)
-                  if (widget.highlightedText != null && widget.highlightedText!.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.sacredGold.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: const Border(left: BorderSide(color: AppTheme.sacredGold, width: 4)),
-                      ),
-                      child: Text(
-                        '"${widget.highlightedText}"',
-                        style: GoogleFonts.merriweather(
-                          fontStyle: FontStyle.italic,
-                          fontSize: 14,
-                          color: AppTheme.sacredDark.withOpacity(0.8),
-                        ),
-                      ),
-                    ),
+                  // Highlights (if exists)
+                  if (widget.highlights != null && widget.highlights!.isNotEmpty)
+                    SavedHighlightsWidget(highlights: widget.highlights!),
                   
                   // Reflection
                   if (widget.fullReflection.trim().isNotEmpty)

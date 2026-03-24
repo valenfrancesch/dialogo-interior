@@ -468,7 +468,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     icon: Icons.local_fire_department,
                     label: 'Racha Actual',
                     mainValue: '...',
-                    secondaryValue: 'cargando',
                     backgroundColor: const Color(0xFFEED9D9),
                   ),
                 ),
@@ -509,7 +508,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     label: 'Racha Actual',
                     mainValue: '${streakData.daysStreak}',
                     mainValueSuffix: 'días',
-                    secondaryValue: '+${streakData.percentageVsLastMonth.toStringAsFixed(1)}% vs mes anterior',
                     backgroundColor: const Color(0xFFEED9D9),
                   ),
                 ),
@@ -683,17 +681,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
       bool isOutOfRange = diff > 30;
 
       if (isOutOfRange) {
-        // Try to load from local entry
-        // We use orElse just to get null safely (well, firstWhere throws if not found without orElse, so we handle it)
-        final entry = _allEntries.firstWhere(
-           (e) => 
-             e.date.year == selectedDate.year &&
-             e.date.month == selectedDate.month &&
-             e.date.day == selectedDate.day,
-           orElse: () => PrayerEntry(id: 'null', userId: '', date: selectedDate, gospelQuote: '', reflection: '')
-        );
+        // Try to load from Firestore by ID if not in currently loaded list
+        final String entryId = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+        
+        PrayerEntry? entry;
+        try {
+          entry = _allEntries.firstWhere(
+            (e) => 
+              e.date.year == selectedDate.year &&
+              e.date.month == selectedDate.month &&
+              e.date.day == selectedDate.day,
+          );
+        } catch (_) {
+          // If not in memory, fetch specifically from firestore
+          entry = await _prayerRepository.getReflectionById(entryId);
+        }
 
-        if (entry.id != 'null' && entry.gospelQuote.isNotEmpty) {
+        if (entry != null && entry.gospelQuote.isNotEmpty) {
            final bibleService = BibleService();
            final parsed = bibleService.parseReference(entry.gospelQuote);
            String content = '';
@@ -727,10 +731,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
       if (gospel == null) {
          if (isOutOfRange) {
-            // Should not happen if UI disables clicking, but safety check
-            throw Exception("Lectura no disponible para esta fecha lejana.");
+            // Already tried fetching user entry but couldn't find one or couldn't fetch text
+            throw Exception("No hay una reflexión guardada para esta fecha lejana.");
          }
-         // Fetch the gospel for that date
+         // Fetch the gospel for that date (only if within range)
          gospel = await GospelRepository.fetchGospelData(selectedDate);
       }
       
@@ -803,8 +807,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
                 if (entry.reflection.isNotEmpty) {
                   excerpt = entry.reflection;
-                } else if (entry.highlightedText != null && entry.highlightedText!.isNotEmpty) {
-                  excerpt = '"${entry.highlightedText}"';
+                } else if (entry.highlights != null && entry.highlights!.isNotEmpty) {
+                  excerpt = '"${entry.highlights!.first.text}"';
+                  if (entry.highlights!.length > 1) {
+                    excerpt += ' y más...';
+                  }
                   isItalic = true;
                 } else if (entry.purpose != null && entry.purpose!.isNotEmpty) {
                   excerpt = 'Propósito: ${entry.purpose}';

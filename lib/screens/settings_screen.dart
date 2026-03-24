@@ -10,6 +10,7 @@ import 'about_screen.dart';
 import 'auth_screen.dart';
 import 'profile_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -73,6 +74,45 @@ class SettingsScreen extends StatelessWidget {
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Lectura', style: headerStyle),
+            ),
+            const SizedBox(height: 10),
+            FutureBuilder<SharedPreferences>(
+              future: SharedPreferences.getInstance(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                final prefs = snapshot.data!;
+                return StatefulBuilder(
+                  builder: (context, setState) {
+                    final isImmersive = prefs.getBool('isImmersiveModeEnabled') ?? true;
+                    return SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      title: const Text('Modo Oración (Pantalla completa)', style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.w500)),
+                      subtitle: Text('Oculta la barra de estado para una lectura sin distracciones', style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.6), fontSize: 12)),
+                      value: isImmersive,
+                      activeColor: AppTheme.accentMint,
+                      onChanged: (val) {
+                        prefs.setBool('isImmersiveModeEnabled', val);
+                        setState(() {});
+                      },
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentMint.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.fullscreen, color: AppTheme.accentMint),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
+            const SizedBox(height: 20),
+            
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text('Cuenta', style: headerStyle),
             ),
             const SizedBox(height: 10),
@@ -92,7 +132,7 @@ class SettingsScreen extends StatelessWidget {
               _buildSettingsTile(
                 icon: Icons.person_outline,
                 title: 'Perfil',
-                subtitle: authProvider.userEmail ?? 'Usuario',
+                subtitle: authProvider.userFullName,
                 showChevron: true,
                 onTap: () {
                   Navigator.push(
@@ -291,23 +331,44 @@ class SettingsScreen extends StatelessWidget {
         surfaceTintColor: Colors.white,
         title: Row(
           children: [
-            Icon(Icons.volunteer_activism, color: AppTheme.sacredRed, size: 24),
+            const Icon(Icons.volunteer_activism, color: AppTheme.sacredRed, size: 24),
             const SizedBox(width: 8),
             const Text('Apóyanos', style: TextStyle(color: AppTheme.sacredDark)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
               'Tu ayuda es fundamental para mantener esta aplicación gratuita y sin publicidad. ¡Dios te bendiga!',
               style: TextStyle(color: AppTheme.sacredDark, fontStyle: FontStyle.italic),
             ),
-            const SizedBox(height: 20),
-            _buildCbuSection(context, 'Cuenta en Pesos (ARS)', '0000003100006822673293'),
-            const SizedBox(height: 16),
-            _buildCbuSection(context, 'Cuenta en Dólares (USD)', '3220001888062462650016'),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                final url = Uri.parse('https://valenfrancesch.github.io/dialogo-interior-web/#donar');
+                try {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } catch (e) {
+                   if (context.mounted) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(content: Text('No se pudo abrir el enlace de donación.'))
+                     );
+                   }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.sacredRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('Ir a donar', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
         actions: [
@@ -316,56 +377,6 @@ class SettingsScreen extends StatelessWidget {
             child: const Text('Cerrar', style: TextStyle(color: AppTheme.sacredDark)),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCbuSection(BuildContext context, String title, String cbu) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.sacredDark, fontSize: 13)),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppTheme.sacredGold.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  cbu,
-                  style: GoogleFonts.robotoMono(fontSize: 12, color: AppTheme.sacredDark),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () {
-                  // Clipboard requires importing services
-                  // But here we are inside a stateless widget method, let's use the context or helper
-                  // Actually, Clipboard needs 'package:flutter/services.dart'
-                   _copyToClipboard(context, cbu);
-                },
-                child: const Icon(Icons.copy, size: 18, color: AppTheme.accentMint),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text)); 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('CBU copiado al portapapeles'), 
-        duration: Duration(seconds: 2),
-        backgroundColor: Colors.green,
       ),
     );
   }

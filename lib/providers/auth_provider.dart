@@ -10,6 +10,8 @@ class AuthProvider extends ChangeNotifier {
   bool _isAuthenticated = false;
   String? _userId;
   String? _userEmail;
+  String? _userName;
+  String? _userSurname;
   
   // TEST MODE: Set to false to use real Firebase, true for demo mode
   static const bool testMode = false;
@@ -19,6 +21,16 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   String? get userId => _userId;
   String? get userEmail => _userEmail;
+  String? get userName => _userName;
+  String? get userSurname => _userSurname;
+
+  /// Returns the full formatted name or a fallback
+  String get userFullName {
+    if (_userName != null && _userSurname != null) {
+      return '$_userName $_userSurname'.trim();
+    }
+    return _userName ?? _userEmail?.split('@').first ?? 'Usuario';
+  }
 
   AuthProvider() {
     // Initialize auth state listener on creation
@@ -33,7 +45,16 @@ class AuthProvider extends ChangeNotifier {
       _isAuthenticated = true;
       _userId = user.uid;
       _userEmail = user.email;
+      await _fetchUserProfile();
       notifyListeners();
+    }
+  }
+
+  Future<void> _fetchUserProfile() async {
+    final profile = await _authService.getUserProfile();
+    if (profile != null) {
+      _userName = profile['name'] as String?;
+      _userSurname = profile['surname'] as String?;
     }
   }
 
@@ -76,6 +97,7 @@ class AuthProvider extends ChangeNotifier {
       _isAuthenticated = true;
       _userId = _authService.currentUserId;
       _userEmail = _authService.currentUserEmail;
+      await _fetchUserProfile();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -116,6 +138,7 @@ class AuthProvider extends ChangeNotifier {
       _isAuthenticated = true;
       _userId = _authService.currentUserId;
       _userEmail = _authService.currentUserEmail;
+      await _fetchUserProfile();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -138,6 +161,8 @@ class AuthProvider extends ChangeNotifier {
       _isAuthenticated = false;
       _userId = null;
       _userEmail = null;
+      _userName = null;
+      _userSurname = null;
       _errorMessage = null;
       _isLoading = false;
       notifyListeners();
@@ -180,6 +205,8 @@ class AuthProvider extends ChangeNotifier {
       _isAuthenticated = false;
       _userId = null;
       _userEmail = null;
+      _userName = null;
+      _userSurname = null;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -199,15 +226,18 @@ class AuthProvider extends ChangeNotifier {
 
   /// Escucha cambios de autenticación en tiempo real
   void listenToAuthChanges() {
-    _authService.authStateChanges.listen((user) {
+    _authService.authStateChanges.listen((user) async {
       if (user != null) {
         _isAuthenticated = true;
         _userId = user.uid;
         _userEmail = user.email;
+        await _fetchUserProfile();
       } else {
         _isAuthenticated = false;
         _userId = null;
         _userEmail = null;
+        _userName = null;
+        _userSurname = null;
       }
       notifyListeners();
     });

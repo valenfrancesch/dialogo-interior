@@ -12,6 +12,7 @@ import '../models/gospel_data.dart';
 import '../models/prayer_entry.dart';
 import '../repositories/gospel_repository.dart';
 import '../repositories/prayer_repository.dart';
+import '../widgets/saved_highlights_widget.dart';
 import '../services/notification_service.dart';
 import '../services/cache_manager.dart';
 import '../utils/text_formatter.dart';
@@ -19,8 +20,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart' as custom_auth;
 import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatform
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_data.dart';
 import 'auth_screen.dart';
+import '../widgets/kindle_clock.dart';
+import '../widgets/share_bottom_sheet.dart';
 
 class ReadingScreen extends StatefulWidget {
   final GospelData? gospel;
@@ -190,7 +194,7 @@ class _ReadingContent extends StatefulWidget {
 
 class _ReadingContentState extends State<_ReadingContent> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0; // Index for the flattened list
-  String _highlightedText = '';
+  List<Highlight> _highlights = [];
   final TextEditingController _responseController = TextEditingController();
   final TextEditingController _purposeController = TextEditingController();
   final PrayerRepository _prayerRepository = PrayerRepository();
@@ -204,6 +208,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   final FocusNode _reflectionFocusNode = FocusNode();
   final FocusNode _purposeFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  bool _isImmersiveMode = false;
 
   bool get _isGuest => !Provider.of<custom_auth.AuthProvider>(context, listen: false).isAuthenticated;
 
@@ -291,12 +296,12 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     );
   }
 
-  void _onHighlightSelected(String text, {bool scheduleReminder = false}) {
+  void _onHighlightSelected(String text, String source, String title, {bool scheduleReminder = false}) {
     if (_isGuest) {
       _showGuestBottomSheet();
     } else {
       setState(() {
-        _highlightedText = text;
+        _highlights.add(Highlight(text: text, source: source, title: title));
       });
       if (scheduleReminder) {
         NotificationService().scheduleFavoriteReminder(text, 20, 0);
@@ -308,25 +313,51 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   @override
   void initState() {
     super.initState();
+    _checkImmersiveMode();
     // Add focus listeners to save when unfocusing
     _reflectionFocusNode.addListener(_onReflectionFocusChanged);
     _purposeFocusNode.addListener(_onPurposeFocusChanged);
     
-    _tabs = ['1ª Lectura', 'Salmo'];
-    _tabLabels = ['1ª Lec', 'Salmo'];
+    // Add autocapitalization listeners
+    _responseController.addListener(_handleAutocapitalizationReflection);
+    _purposeController.addListener(_handleAutocapitalizationPurpose);
+    
+    _tabs = [];
+    _tabLabels = [];
+    
+    // Dynamically add tabs that have content
+    if (widget.gospel.firstReading.isNotEmpty && widget.gospel.firstReading != 'Lectura Histórica') {
+      _tabs.add('1ª Lectura');
+      _tabLabels.add('1ª Lec');
+    }
+    
+    if (widget.gospel.psalm.isNotEmpty && widget.gospel.psalm != 'Lectura desde Historial') {
+      _tabs.add('Salmo');
+      _tabLabels.add('Salmo');
+    }
     
     if (widget.gospel.secondReading != null && widget.gospel.secondReading!.isNotEmpty) {
       _tabs.add('2ª Lectura');
       _tabLabels.add('2ª Lec');
     }
-    _tabs.add('Evangelio');
-    _tabLabels.add('Evangelio');
     
-    _tabs.add('Comentario');
-    _tabLabels.add('Comentario');
+    if (widget.gospel.evangeliumText.isNotEmpty) {
+      _tabs.add('Evangelio');
+      _tabLabels.add('Evangelio');
+    }
+    
+    if (widget.gospel.commentBody.isNotEmpty && 
+        widget.gospel.commentBody != 'Reflexión disponible en evangelizo.org' &&
+        widget.gospel.commentTitle != 'Reflexión Guardada') {
+      _tabs.add('Comentario');
+      _tabLabels.add('Comentario');
+    }
 
-    // Default to Gospel (index of 'Evangelio')
+    // Default to Gospel (index of 'Evangelio') or the first tab if Gospel isn't there (unlikely)
     _selectedIndex = _tabs.indexOf('Evangelio');
+    if (_selectedIndex == -1 && _tabs.isNotEmpty) {
+      _selectedIndex = 0;
+    }
     
     if (_isGuest) {
       _historyFuture = Future.value([]);
@@ -348,6 +379,16 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     }
   }
 
+  Future<void> _checkImmersiveMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isImmersive = prefs.getBool('isImmersiveModeEnabled') ?? true;
+    if (isImmersive) {
+      _isImmersiveMode = true;
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      if (mounted) setState(() {});
+    }
+  }
+
   Future<void> _loadSavedReflection() async {
     // Try to get from cache first
     final reflectionCacheKey = CacheKeys.forDate(CacheKeys.readingReflection, widget.gospel.date);
@@ -357,7 +398,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       setState(() {
         _responseController.text = cachedReflection.reflection;
         _lastReflectionText = cachedReflection.reflection;
-        _highlightedText = cachedReflection.highlightedText ?? '';
+        _highlights = List.from(cachedReflection.highlights ?? []);
         _purposeController.text = cachedReflection.purpose ?? '';
         _lastPurposeText = cachedReflection.purpose ?? '';
       });
@@ -376,7 +417,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         setState(() {
           _responseController.text = entry.reflection;
           _lastReflectionText = entry.reflection; // Initialize last text
-          _highlightedText = entry.highlightedText ?? '';
+          _highlights = List.from(entry.highlights ?? []);
           _purposeController.text = entry.purpose ?? '';
           _lastPurposeText = entry.purpose ?? ''; // Initialize last text
         });
@@ -388,6 +429,9 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   @override
   void dispose() {
+    if (_isImmersiveMode) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     _scrollController.dispose();
     _reflectionFocusNode.dispose();
     _purposeFocusNode.dispose();
@@ -405,6 +449,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         _saveReflection();
       }
     }
+    // Rebuild to show/hide floating check button
+    setState(() {});
   }
 
   void _onPurposeFocusChanged() {
@@ -416,16 +462,67 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         _saveReflection();
       }
     }
+    // Rebuild to show/hide floating check button
+    setState(() {});
+  }
+
+  void _handleAutocapitalizationReflection() {
+    _handleAutocapitalization(_responseController);
+  }
+
+  void _handleAutocapitalizationPurpose() {
+    _handleAutocapitalization(_purposeController);
+  }
+
+  void _handleAutocapitalization(TextEditingController controller) {
+    String text = controller.text;
+    int selectionIndex = controller.selection.baseOffset;
+    
+    // Pattern: . followed by space, then a lowercase letter
+    // Match ". a" -> ". A"
+    if (selectionIndex > 2 && text.length >= selectionIndex) {
+      String segment = text.substring(0, selectionIndex);
+      if (segment.endsWith(' ') && segment.length >= 3) {
+        String beforeSpace = segment.substring(segment.length - 2, segment.length - 1);
+        String lastChar = segment.substring(segment.length - 1); // This is the space
+        
+        // We need to check if what was BEFORE the space was a punctuation mark
+        if (RegExp(r'[.!?]').hasMatch(beforeSpace)) {
+          // This doesn't help yet because the user hasn't typed the NEW letter.
+          // We need to wait for the NEXT character.
+        }
+      }
+    }
+    
+    // Better logic: if the text just changed and the last character is lowercase
+    // and it follows a ". " pattern.
+    if (selectionIndex > 0) {
+      String segment = text.substring(0, selectionIndex);
+      if (segment.length >= 3) {
+        String lastChar = segment.substring(segment.length - 1);
+        String punctSpace = segment.substring(segment.length - 3, segment.length - 1);
+        
+        if (RegExp(r'[.!?] ').hasMatch(punctSpace) && RegExp(r'[a-z]').hasMatch(lastChar)) {
+          String newText = text.substring(0, selectionIndex - 1) + 
+                          lastChar.toUpperCase() + 
+                          text.substring(selectionIndex);
+          
+          controller.value = controller.value.copyWith(
+            text: newText,
+            selection: TextSelection.collapsed(offset: selectionIndex),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _saveReflection() async {
     // No need to unfocus for autosave
     final reflectionText = _responseController.text.trim();
     final purposeText = _purposeController.text.trim();
-    final highlightedText = _highlightedText.trim();
 
     // Don't save if all three fields are empty
-    if (reflectionText.isEmpty && highlightedText.isEmpty && purposeText.isEmpty) {
+    if (reflectionText.isEmpty && _highlights.isEmpty && purposeText.isEmpty) {
       setState(() => _saveStatus = '');
       return;
     }
@@ -449,7 +546,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         date: widget.gospel.date,
         gospelQuote: widget.gospel.title,
         reflection: reflectionText,
-        highlightedText: highlightedText.isNotEmpty ? highlightedText : null,
+        highlights: _highlights.isNotEmpty ? _highlights : null,
         purpose: purposeText.isNotEmpty ? purposeText : null,
       );
 
@@ -484,48 +581,59 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     }
   }
 
-  Future<void> _shareReflection() async {
-    final StringBuffer shareText = StringBuffer();
-    shareText.writeln('📖 ${widget.gospel.title}');
-    shareText.writeln('📅 ${_formatDate(widget.gospel.date)}');
-    shareText.writeln();
-
-    shareText.writeln('═══ Evangelio ═══');
-    shareText.writeln(widget.gospel.evangeliumText);
-    shareText.writeln();
-
-    if (_highlightedText.isNotEmpty) {
-      shareText.writeln('✨ Luz de hoy:');
-      shareText.writeln('"$_highlightedText"');
-      shareText.writeln();
+  void _shareReflection() {
+    final availableLectures = <Lecture>[];
+    
+    if (widget.gospel.firstReading.isNotEmpty && widget.gospel.firstReading != 'Lectura Histórica') {
+      availableLectures.add(Lecture(
+        title: '1ª Lectura',
+        content: TextFormatter.formatReadingText(widget.gospel.firstReading),
+        reference: widget.gospel.firstReadingReference,
+      ));
+    }
+    if (widget.gospel.psalm.isNotEmpty && widget.gospel.psalm != 'Lectura desde Historial') {
+      availableLectures.add(Lecture(
+        title: 'Salmo',
+        content: TextFormatter.formatPsalm(widget.gospel.psalm),
+        reference: widget.gospel.psalmReference,
+      ));
+    }
+    if (widget.gospel.secondReading != null && widget.gospel.secondReading!.isNotEmpty) {
+      availableLectures.add(Lecture(
+        title: '2ª Lectura',
+        content: TextFormatter.formatReadingText(widget.gospel.secondReading!),
+        reference: widget.gospel.secondReadingReference,
+      ));
+    }
+    if (widget.gospel.evangeliumText.isNotEmpty) {
+      availableLectures.add(Lecture(
+        title: 'Evangelio',
+        content: TextFormatter.formatReadingText(widget.gospel.evangeliumText),
+        reference: widget.gospel.title,
+      ));
+    }
+    if (widget.gospel.commentBody.isNotEmpty && 
+        widget.gospel.commentBody != 'Reflexión disponible en evangelizo.org' &&
+        widget.gospel.commentTitle != 'Reflexión Guardada') {
+      availableLectures.add(Lecture(
+        title: 'Comentario',
+        content: widget.gospel.commentBody,
+        reference: widget.gospel.commentTitle,
+      ));
     }
 
-    final reflection = _responseController.text.trim();
-    if (reflection.isNotEmpty) {
-      shareText.writeln('💭 Mi Reflexión:');
-      shareText.writeln(reflection);
-      shareText.writeln();
-    }
-
-    shareText.writeln('───────────────');
-    shareText.writeln('Compartido desde Diálogo Interior');
-
-    try {
-      await Share.share(shareText.toString());
-    } catch (e) {
-      if (mounted) {
-        await Clipboard.setData(ClipboardData(text: shareText.toString()));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✓ Texto copiado al portapapeles'),
-              duration: Duration(seconds: 2),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ShareBottomSheet(
+        date: widget.gospel.date,
+        availableLectures: availableLectures,
+        highlights: _highlights,
+        reflection: _responseController.text,
+        purpose: _purposeController.text,
+      ),
+    );
   }
 
   Future<void> _saveToSharedStorage() async {
@@ -544,9 +652,10 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       await HomeWidget.saveWidgetData<String>('widget_date', dateKey);
       
       // Always save highlighted text (even if empty to clear previous value)
+      final highlightToSave = _highlights.isNotEmpty ? _highlights.first.text : 'Abre la app para leer hoy';
       await HomeWidget.saveWidgetData<String>(
         'highlighted_text', 
-        _highlightedText.isNotEmpty ? _highlightedText : 'Abre la app para leer hoy'
+        highlightToSave
       );
       
       // Always save purpose (even if empty to clear previous value)
@@ -563,7 +672,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
         iOSName: 'HomeWidgetProvider'
       );
       
-      debugPrint('Widget updated: date="$dateKey", highlight="$_highlightedText", purpose="$purposeText"');
+      debugPrint('Widget updated: date="$dateKey", highlights=${_highlights.length}, purpose="$purposeText"');
     } catch (e) {
       debugPrint('Error saving to shared storage: $e');
     }
@@ -582,43 +691,66 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     return SafeArea(
       top: true,
       bottom: false,
-      child: NestedScrollView(
-        controller: _scrollController,
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverToBoxAdapter(
-            child: _buildHeader(),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _SliverTabHeaderDelegate(
-              minHeight: 66, // Matches the height of the toggle + padding
-              maxHeight: 66,
-              child: Container(
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isImmersiveMode)
+              Container(
                 color: AppTheme.primaryDarkBg,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: TextSegmentToggle(
-                  segments: _tabLabels,
-                  initialIndex: _selectedIndex,
-                  onChanged: (index) {
-                    FocusScope.of(context).unfocus();
-                    _saveReflection();
-                    setState(() {
-                      _selectedIndex = index;
-                    });
-                    if (_scrollController.hasClients) {
-                      _scrollController.animateTo(
-                        0.0,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  },
-                ),
+                width: double.infinity,
+                padding: const EdgeInsets.only(left: 16, top: 4),
+                child: const KindleClock(),
+              ),
+            Expanded(
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const ClampingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _buildHeader(),
+                  ),
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _SliverTabHeaderDelegate(
+                      minHeight: 66,
+                      maxHeight: 66,
+                      child: Container(
+                        color: AppTheme.primaryDarkBg,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: TextSegmentToggle(
+                          segments: _tabLabels,
+                          initialIndex: _selectedIndex,
+                          onChanged: (index) {
+                            FocusScope.of(context).unfocus();
+                            _saveReflection();
+                            setState(() {
+                              _selectedIndex = index;
+                            });
+                            if (_scrollController.hasClients) {
+                              _scrollController.animateTo(
+                                0.0,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                    sliver: SliverToBoxAdapter(
+                      child: _buildCurrentContent(),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-        body: _buildCurrentContent(),
+          ],
+        ),
       ),
     );
   }
@@ -641,21 +773,13 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       readingContent = const SizedBox.shrink();
     }
 
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: SingleChildScrollView(
-        key: ValueKey(_selectedIndex),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            readingContent,
-            _buildReflectionInputSection(),
-          ],
-        ),
-      ),
+    return Column(
+      key: ValueKey(_selectedIndex),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        readingContent,
+        _buildReflectionInputSection(),
+      ],
     );
   }
 
@@ -728,7 +852,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.share, color: AppTheme.accentMint, size: 20),
+                  icon: const Icon(Icons.ios_share, color: AppTheme.accentMint, size: 20),
                   onPressed: _shareReflection,
                 ),
               ],
@@ -942,6 +1066,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     const String sourceString = 'Extraído de la Biblia: Libro del Pueblo de Dios';
     final bool hasSource = text.contains(sourceString);
     final String cleanText = text.replaceFirst(sourceString, '').trim();
+    final String source = _tabs[_selectedIndex];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -968,8 +1093,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                     height: 1.8,
                     color: AppTheme.sacredDark.withOpacity(0.9),
                   ),
-                  highlightedText: _highlightedText,
-                  onHighlight: _onHighlightSelected,
+                  highlightedTexts: _highlights.where((h) => h.source == source).map((h) => h.text).toList(),
+                  onHighlight: (text) => _onHighlightSelected(text, source, reference),
                 ),
                 if (hasSource) ...[
                   const SizedBox(height: 16),
@@ -994,6 +1119,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     const String sourceString = 'Extraído de la Biblia: Libro del Pueblo de Dios';
     final bool hasSource = text.contains(sourceString);
     final String cleanText = text.replaceFirst(sourceString, '').trim();
+    final String source = _tabs[_selectedIndex];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1021,8 +1147,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                     color: AppTheme.sacredDark.withOpacity(0.9),
                     fontStyle: FontStyle.italic,
                   ),
-                  highlightedText: _highlightedText,
-                  onHighlight: _onHighlightSelected,
+                  highlightedTexts: _highlights.where((h) => h.source == source).map((h) => h.text).toList(),
+                  onHighlight: (text) => _onHighlightSelected(text, source, reference),
                 ),
                 if (hasSource) ...[
                   const SizedBox(height: 16),
@@ -1048,6 +1174,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     final String text = widget.gospel.evangeliumText;
     final bool hasSource = text.contains(sourceString);
     final String cleanText = text.replaceFirst(sourceString, '').trim();
+    final String source = _tabs[_selectedIndex];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1075,8 +1202,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                     color: AppTheme.sacredDark.withOpacity(0.9),
                     height: 1.8,
                   ),
-                  highlightedText: _highlightedText,
-                  onHighlight: _onHighlightSelected,
+                  highlightedTexts: _highlights.where((h) => h.source == source).map((h) => h.text).toList(),
+                  onHighlight: (text) => _onHighlightSelected(text, source, widget.gospel.title),
                 ),
                 if (hasSource) ...[
                   const SizedBox(height: 16),
@@ -1097,6 +1224,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   }
 
   Widget _buildCommentaryTab() {
+    final String source = _tabs[_selectedIndex];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1111,8 +1239,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                  SelectableTextContent(
                    text: widget.gospel.commentBody,
                    textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400, color: AppTheme.sacredDark.withOpacity(0.9), height: 1.8), // Fixed color
-                   highlightedText: _highlightedText,
-                    onHighlight: (text) => _onHighlightSelected(text, scheduleReminder: true),
+                   highlightedTexts: _highlights.where((h) => h.source == source).map((h) => h.text).toList(),
+                   onHighlight: (text) => _onHighlightSelected(text, source, widget.gospel.commentTitle, scheduleReminder: true),
                   ),
                  const SizedBox(height: 16),
                  Column(
@@ -1140,30 +1268,21 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
              Row(
                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                children: [
-                 Text('Luz de hoy', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.accentMint)),
-                 if (_highlightedText.isNotEmpty) TextButton.icon(onPressed: () => setState(() => _highlightedText = ''), icon: const Icon(Icons.clear, size: 18), label: const Text('Limpiar'), style: TextButton.styleFrom(foregroundColor: AppTheme.sacredRed)),
+                 Text('Luces de hoy', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.accentMint)),
                ],
              ),
              const SizedBox(height: 8),
-             if (_highlightedText.isNotEmpty)
-               Container(
-                 padding: const EdgeInsets.all(16),
-                 decoration: BoxDecoration(
-                   color: AppTheme.sacredGold.withOpacity(0.15),
-                   borderRadius: BorderRadius.circular(12),
-                   border: Border(left: BorderSide(color: AppTheme.sacredGold, width: 4)),
-                 ),
-                 child: Text(
-                   '"$_highlightedText"',
-                   style: GoogleFonts.merriweather(
-                     fontStyle: FontStyle.italic,
-                     fontSize: 14,
-                     color: AppTheme.sacredDark.withOpacity(0.8),
-                   ),
-                 ),
-               )
-             else
-               Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text('Mantén presionado sobre el texto para destacar.', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.sacredDark.withOpacity(0.4), fontStyle: FontStyle.italic))), // Fixed color
+             if (_highlights.isNotEmpty)
+                SavedHighlightsWidget(
+                  highlights: _highlights,
+                  onDelete: (highlight) {
+                    setState(() {
+                      _highlights.remove(highlight);
+                    });
+                    _saveReflection();
+                  },
+                ),
+             Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text('Mantén presionado sobre el texto para destacar.', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.sacredDark.withOpacity(0.4), fontStyle: FontStyle.italic))), // Fixed color
            ],
          ),
          const SizedBox(height: 24),
@@ -1175,27 +1294,48 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
             ],
          ),
          const SizedBox(height: 12),
-         TextField(
-            controller: _responseController,
-            focusNode: _reflectionFocusNode,
-            maxLines: null,
-            minLines: 3,
-            keyboardType: TextInputType.multiline,
-            readOnly: _isGuest,
-            onTap: _isGuest ? _showGuestBottomSheet : null,
-           style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark), // Fixed color
-           decoration: InputDecoration(
-             hintText: 'Escribe tu reflexión personal...',
-             hintStyle: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark.withOpacity(0.3)), // Fixed color
-             filled: true,
-             fillColor: AppTheme.cardDark,
-             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
-             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-           ),
-         ),
-         const SizedBox(height: 24),
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              TextField(
+                controller: _responseController,
+                focusNode: _reflectionFocusNode,
+                maxLines: null,
+                minLines: 3,
+                keyboardType: TextInputType.multiline,
+                readOnly: _isGuest,
+                onTap: _isGuest ? _showGuestBottomSheet : null,
+                style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark),
+                decoration: InputDecoration(
+                  hintText: 'Escribe tu reflexión personal...',
+                  hintStyle: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark.withOpacity(0.3)),
+                  filled: true,
+                  fillColor: AppTheme.cardDark,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
+                  contentPadding: const EdgeInsets.fromLTRB(16, 12, 48, 12), // Extra right padding for the button
+                ),
+              ),
+              if (_reflectionFocusNode.hasFocus && !_isGuest)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8, bottom: 8),
+                  child: IconButton(
+                    onPressed: () {
+                      _reflectionFocusNode.unfocus();
+                    },
+                    icon: const Icon(Icons.check, color: Colors.white, size: 20),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppTheme.sacredRed,
+                      padding: const EdgeInsets.all(8),
+                      minimumSize: const Size(36, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
 
           // Sección de Propósito
           Text(
@@ -1207,34 +1347,55 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _purposeController,
-            focusNode: _purposeFocusNode,
-            readOnly: _isGuest,
-            onTap: _isGuest ? _showGuestBottomSheet : null,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: AppTheme.sacredDark,
-              fontWeight: FontWeight.w500,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Escribe un propósito concreto...',
-              hintStyle: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppTheme.sacredDark.withOpacity(0.3),
-                fontStyle: FontStyle.italic,
+          Stack(
+            alignment: Alignment.centerRight,
+            children: [
+              TextField(
+                controller: _purposeController,
+                focusNode: _purposeFocusNode,
+                readOnly: _isGuest,
+                onTap: _isGuest ? _showGuestBottomSheet : null,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: AppTheme.sacredDark,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Escribe un propósito concreto...',
+                  hintStyle: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppTheme.sacredDark.withOpacity(0.3),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.cardDark,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
+                  contentPadding: const EdgeInsets.fromLTRB(16, 14, 48, 14), // Extra right padding for the button
+                  prefixIcon: const Icon(Icons.stars, color: AppTheme.accentMint),
+                ),
+                maxLines: null,
+                minLines: 1,
+                keyboardType: TextInputType.multiline,
               ),
-              filled: true,
-              fillColor: AppTheme.cardDark,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.accentMint, width: 2)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              prefixIcon: const Icon(Icons.stars, color: AppTheme.accentMint),
-            ),
-            maxLines: null,
-            minLines: 1,
-            keyboardType: TextInputType.multiline,
+              if (_purposeFocusNode.hasFocus && !_isGuest)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: () {
+                      _purposeFocusNode.unfocus();
+                    },
+                    icon: const Icon(Icons.check, color: Colors.white, size: 20),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppTheme.sacredRed,
+                      padding: const EdgeInsets.all(8),
+                      minimumSize: const Size(36, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 32),
           const SizedBox(height: 32),
@@ -1303,14 +1464,14 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
               Text('Memoria Espiritual', style: GoogleFonts.montserrat(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.sacredDark)), // Fixed color
               const SizedBox(height: 16),
               Column(
-                children: entries.where((entry) => entry.id != entries.first.id).map((entry) {
+                children: entries.where((entry) => entry.id != entries.first.id).map<Widget>((entry) {
                   final yearsAgo = _calculateYearsAgo(entry.date);
                   return TimelineCard(
                     timeLabel: yearsAgo,
                     date: _formatDate(entry.date),
                     passage: entry.gospelQuote,
                     fullReflection: entry.reflection,
-                    highlightedText: entry.highlightedText,
+                    highlights: entry.highlights,
                     purpose: entry.purpose,
                     isFirstReflection: false,
                   );

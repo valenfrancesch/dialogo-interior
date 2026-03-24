@@ -145,6 +145,21 @@ class AuthService {
   /// Obtiene el email del usuario actual
   String? get currentUserEmail => _auth.currentUser?.email;
 
+  /// Obtiene los datos del perfil del usuario
+  Future<Map<String, dynamic>?> getUserProfile() async {
+    final user = currentUser;
+    if (user == null) return null;
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        return doc.data();
+      }
+    } catch (e) {
+      // Ignorar el error para no bloquear el flujo si falla
+    }
+    return null;
+  }
+
   /// Verifica si el email está verificado
   bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
 

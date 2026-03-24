@@ -6,14 +6,14 @@ class SelectableTextContent extends StatefulWidget {
   final String text;
   final TextStyle? textStyle;
   final Function(String)? onHighlight;
-  final String? highlightedText;
+  final List<String>? highlightedTexts;
 
   const SelectableTextContent({
     super.key,
     required this.text,
     this.textStyle,
     this.onHighlight,
-    this.highlightedText,
+    this.highlightedTexts,
   });
 
   @override
@@ -46,39 +46,78 @@ class _SelectableTextContentState extends State<SelectableTextContent> {
   TextSpan _buildHighlightedTextSpan() {
     final baseStyle = widget.textStyle ?? GoogleFonts.inter(fontSize: 16, height: 1.5);
     
-    // If no highlighted text, return plain text
-    if (widget.highlightedText == null || widget.highlightedText!.isEmpty) {
+    // If no highlighted texts, return plain text
+    if (widget.highlightedTexts == null || widget.highlightedTexts!.isEmpty) {
       return TextSpan(text: widget.text, style: baseStyle);
     }
 
-    // Find the highlighted text in the main text
-    final highlightIndex = widget.text.indexOf(widget.highlightedText!);
+    // Find all occurrences of any text in highlightedTexts
+    List<_HighlightMatch> matches = [];
+    for (String hText in widget.highlightedTexts!) {
+      if (hText.isEmpty) continue;
+      int startIndex = 0;
+      while (true) {
+        final index = widget.text.indexOf(hText, startIndex);
+        if (index == -1) break;
+        matches.add(_HighlightMatch(start: index, end: index + hText.length, text: hText));
+        startIndex = index + hText.length;
+      }
+    }
+
+    if (matches.isEmpty) {
+      return TextSpan(text: widget.text, style: baseStyle);
+    }
+
+    // Sort matches by start index
+    matches.sort((a, b) => a.start.compareTo(b.start));
+
+    // Handle overlapping matches by merging them
+    List<_HighlightMatch> mergedMatches = [];
+    for (var match in matches) {
+      if (mergedMatches.isEmpty) {
+        mergedMatches.add(match);
+      } else {
+        var last = mergedMatches.last;
+        if (match.start <= last.end) {
+          // Overlap, update end index
+          if (match.end > last.end) {
+            last.end = match.end;
+            last.text = widget.text.substring(last.start, last.end);
+          }
+        } else {
+          mergedMatches.add(match);
+        }
+      }
+    }
+
+    List<InlineSpan> children = [];
+    int currentIndex = 0;
     
-    if (highlightIndex == -1) {
-      // Highlighted text not found, return plain text
-      return TextSpan(text: widget.text, style: baseStyle);
+    for (var match in mergedMatches) {
+      if (match.start > currentIndex) {
+        children.add(TextSpan(
+          text: widget.text.substring(currentIndex, match.start),
+          style: baseStyle,
+        ));
+      }
+      children.add(TextSpan(
+        text: widget.text.substring(match.start, match.end),
+        style: baseStyle.copyWith(
+          backgroundColor: AppTheme.sacredGold.withOpacity(0.3),
+          fontWeight: FontWeight.w500,
+        ),
+      ));
+      currentIndex = match.end;
     }
 
-    // Build TextSpan with highlighted section
-    final beforeHighlight = widget.text.substring(0, highlightIndex);
-    final highlighted = widget.highlightedText!;
-    final afterHighlight = widget.text.substring(highlightIndex + highlighted.length);
+    if (currentIndex < widget.text.length) {
+      children.add(TextSpan(
+        text: widget.text.substring(currentIndex),
+        style: baseStyle,
+      ));
+    }
 
-    return TextSpan(
-      children: [
-        if (beforeHighlight.isNotEmpty)
-          TextSpan(text: beforeHighlight, style: baseStyle),
-        TextSpan(
-          text: highlighted,
-          style: baseStyle.copyWith(
-            backgroundColor: AppTheme.sacredGold.withOpacity(0.3),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        if (afterHighlight.isNotEmpty)
-          TextSpan(text: afterHighlight, style: baseStyle),
-      ],
-    );
+    return TextSpan(children: children);
   }
 
   @override
@@ -117,7 +156,6 @@ class _SelectableTextContentState extends State<SelectableTextContent> {
           ...editableTextState.contextMenuButtonItems,
         ];
 
-        // Return adaptive toolbar (works on Web, Android, and iOS)
         return AdaptiveTextSelectionToolbar.buttonItems(
           anchors: editableTextState.contextMenuAnchors,
           buttonItems: buttonItems,
@@ -125,4 +163,16 @@ class _SelectableTextContentState extends State<SelectableTextContent> {
       },
     );
   }
+}
+
+class _HighlightMatch {
+  int start;
+  int end;
+  String text;
+
+  _HighlightMatch({
+    required this.start,
+    required this.end,
+    required this.text,
+  });
 }
