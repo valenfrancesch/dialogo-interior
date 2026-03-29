@@ -1,4 +1,5 @@
 package com.dialogointerior.app
+import com.dialogointerior.app.R
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -30,10 +31,12 @@ class DialogoWidgetProvider : HomeWidgetProvider() {
                 val isToday = savedDate == today
                 
                 // 1. Retrieve data from Flutter (only if from today)
+                val defaultText = "Tu momento de oración te espera.\nEntra para leer el Evangelio de hoy."
+
                 val highlightText = if (isToday) {
-                    widgetData.getString("highlighted_text", "¿Qué mensaje te habla hoy?\nAbre la app para leer el Evangelio")
+                    widgetData.getString("highlighted_text", defaultText)
                 } else {
-                    "¿Qué mensaje te habla hoy?\nAbre la app para leer el Evangelio"
+                    defaultText
                 }
                 
                 val purposeText = if (isToday) {

@@ -757,6 +757,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
             Expanded(
               child: NestedScrollView(
                 controller: _scrollController,
+                physics: const ClampingScrollPhysics(),
                 headerSliverBuilder: (context, innerBoxIsScrolled) {
                   return [
                     SliverToBoxAdapter(
@@ -832,6 +833,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                   },
                   itemBuilder: (context, index) {
                     return SingleChildScrollView(
+                      primary: true,
                       physics: const ClampingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                       child: _buildContentForIndex(index),
