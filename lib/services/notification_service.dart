@@ -107,7 +107,7 @@ class NotificationService {
   Future<void> scheduleFavoriteReminder(String verse, int hour, int minute) async {
     await _notifications.zonedSchedule(
       200, // ID único para el Favorito
-      'Tu Palabra de Vida',
+      'Tu luz de hoy',
       '"$verse"',
       _nextInstanceOfTime(hour, minute),
       const NotificationDetails(

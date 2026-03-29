@@ -1,28 +1,36 @@
 class GospelData {
   final String firstReading;
   final String firstReadingReference;
+  final String? firstReadingLongTitle; // Long title from reading_lt
   final String psalm;
   final String psalmReference;
-  final String? secondReading; // Puede ser null
-  final String? secondReadingReference; // Puede ser null
-  final String? feast; // Festa del día
-  final String title; // Ej: "Juan 3:16-21"
-  final String evangeliumText; // Texto completo del evangelio
-  final String commentTitle; // Título del comentario
-  final String commentBody; // Cuerpo del comentario
-  final String commentAuthor; // Autor (Ej: San Agustín)
-  final String commentSource; // Referencia/Fuente
+  final String? psalmLongTitle; // Long title from reading_lt
+  final String? secondReading;
+  final String? secondReadingReference;
+  final String? secondReadingLongTitle; // Long title from reading_lt
+  final String? feast;
+  final String title;
+  final String? gospelLongTitle; // Long title from reading_lt for GSP
+  final String evangeliumText;
+  final String commentTitle;
+  final String commentBody;
+  final String commentAuthor;
+  final String commentSource;
   final DateTime date;
 
   GospelData({
     required this.firstReading,
     required this.firstReadingReference,
+    this.firstReadingLongTitle,
     required this.psalm,
     required this.psalmReference,
+    this.psalmLongTitle,
     this.secondReading,
     this.secondReadingReference,
+    this.secondReadingLongTitle,
     this.feast,
     required this.title,
+    this.gospelLongTitle,
     required this.evangeliumText,
     required this.commentTitle,
     required this.commentBody,
@@ -35,12 +43,16 @@ class GospelData {
   factory GospelData.fromApiResponses({
     required String firstReading,
     required String firstReadingReference,
+    String? firstReadingLongTitle,
     required String psalm,
     required String psalmReference,
+    String? psalmLongTitle,
     String? secondReading,
     String? secondReadingReference,
+    String? secondReadingLongTitle,
     String? feast,
     required String title,
+    String? gospelLongTitle,
     required String evangeliumText,
     required String commentTitle,
     required String commentBody,
@@ -51,12 +63,16 @@ class GospelData {
     return GospelData(
       firstReading: firstReading,
       firstReadingReference: firstReadingReference,
+      firstReadingLongTitle: firstReadingLongTitle,
       psalm: psalm,
       psalmReference: psalmReference,
+      psalmLongTitle: psalmLongTitle,
       secondReading: secondReading,
       secondReadingReference: secondReadingReference,
+      secondReadingLongTitle: secondReadingLongTitle,
       feast: feast,
       title: title,
+      gospelLongTitle: gospelLongTitle,
       evangeliumText: evangeliumText,
       commentTitle: commentTitle,
       commentBody: commentBody,

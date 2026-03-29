@@ -28,6 +28,9 @@ class _MainNavigationState extends State<MainNavigation> {
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppTheme.cardDark,
         currentIndex: _currentIndex,
+        selectedItemColor: AppTheme.sacredRed,
+        unselectedItemColor: AppTheme.sacredGold,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _currentIndex = index;

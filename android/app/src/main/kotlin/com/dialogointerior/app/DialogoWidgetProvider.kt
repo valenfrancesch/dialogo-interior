@@ -31,9 +31,9 @@ class DialogoWidgetProvider : HomeWidgetProvider() {
                 
                 // 1. Retrieve data from Flutter (only if from today)
                 val highlightText = if (isToday) {
-                    widgetData.getString("highlighted_text", "Abre la app para leer hoy")
+                    widgetData.getString("highlighted_text", "¿Qué mensaje te habla hoy?\nAbre la app para leer el Evangelio")
                 } else {
-                    "Abre la app para leer hoy"
+                    "¿Qué mensaje te habla hoy?\nAbre la app para leer el Evangelio"
                 }
                 
                 val purposeText = if (isToday) {
@@ -47,7 +47,7 @@ class DialogoWidgetProvider : HomeWidgetProvider() {
                 
                 // 3. Purpose display logic
                 if (purposeText.isNullOrEmpty()) {
-                    setTextViewText(R.id.widget_purpose, "Sin propósito guardado aún")
+                    setTextViewText(R.id.widget_purpose, "¿Qué propósito te guía hoy?")
                 } else {
                     setTextViewText(R.id.widget_purpose, purposeText)
                 }

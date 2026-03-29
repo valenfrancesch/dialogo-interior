@@ -264,7 +264,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       return _buildGuestEmptyState();
     }
     return Scaffold(
-      backgroundColor: AppTheme.sacredCream,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _hasError && _allEntries.isEmpty 
           ? GlobalErrorWidget(
@@ -290,7 +290,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         style: GoogleFonts.montserrat(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.sacredRed,
+                          color: Theme.of(context).brightness == Brightness.dark 
+                              ? AppTheme.sacredDark 
+                              : AppTheme.sacredRed,
                         ),
                       ),
                     ],
@@ -357,7 +359,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppTheme.sacredDark, // Updated text color
+            color: Theme.of(context).colorScheme.onSurface, 
           ),
         ),
         const SizedBox(height: 16),
@@ -446,7 +448,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppTheme.sacredDark, // Updated text color
+            color: Theme.of(context).colorScheme.onSurface, 
           ),
         ),
         
@@ -540,7 +542,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDFBFA), // Slightly lighter/warmer than sacredCream
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : const Color(0xFFFDFBFA),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
@@ -561,7 +565,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.sacredDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               Row(
@@ -656,114 +660,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _loadGospelForDate(DateTime selectedDate) async {
-    try {
-      // Show loading indicator
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentMint),
-            ),
-          ),
-        );
-      }
-
-      GospelData? gospel;
-      
-      final today = DateTime.now();
-      // Calculate diff stripping time
-      final todayDate = DateTime(today.year, today.month, today.day);
-      final selectedDateDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-      final diff = selectedDateDate.difference(todayDate).inDays.abs();
-      
-      bool isOutOfRange = diff > 30;
-
-      if (isOutOfRange) {
-        // Try to load from Firestore by ID if not in currently loaded list
-        final String entryId = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
-        
-        PrayerEntry? entry;
-        try {
-          entry = _allEntries.firstWhere(
-            (e) => 
-              e.date.year == selectedDate.year &&
-              e.date.month == selectedDate.month &&
-              e.date.day == selectedDate.day,
-          );
-        } catch (_) {
-          // If not in memory, fetch specifically from firestore
-          entry = await _prayerRepository.getReflectionById(entryId);
-        }
-
-        if (entry != null && entry.gospelQuote.isNotEmpty) {
-           final bibleService = BibleService();
-           final parsed = bibleService.parseReference(entry.gospelQuote);
-           String content = '';
-           
-           if (parsed != null) {
-              content = await bibleService.getVersiclesText(
-                parsed['book'], 
-                parsed['chapter'], 
-                parsed['startVersicle'], 
-                parsed['endVersicle']
-              );
-           }
-           
-           if (content.isNotEmpty) {
-             gospel = GospelData(
-               title: entry.gospelQuote,
-               date: selectedDate,
-               firstReading: 'Lectura Histórica',
-               firstReadingReference: '',
-               psalm: 'Lectura desde Historial',
-               psalmReference: '',
-               evangeliumText: content,
-               commentTitle: 'Reflexión Guardada',
-               commentBody: 'Esta es una lectura recuperada de tu historial de reflexiones.',
-               commentAuthor: 'Historial',
-               commentSource: '',
-             );
-           }
-        }
-      }
-
-      if (gospel == null) {
-         if (isOutOfRange) {
-            // Already tried fetching user entry but couldn't find one or couldn't fetch text
-            throw Exception("No hay una reflexión guardada para esta fecha lejana.");
-         }
-         // Fetch the gospel for that date (only if within range)
-         gospel = await GospelRepository.fetchGospelData(selectedDate);
-      }
-      
-      // Close loading dialog
-      if (mounted) {
-        Navigator.pop(context);
-        
-        // Navigate to ReadingScreen with the gospel
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReadingScreen(gospel: gospel),
-          ),
-        ).then((_) {
-          // Refresh data when returning from reading screen (in case a new entry was made)
-          _loadInitialData();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar la lectura: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    // We now use the unified ReadingScreen which handles 
+    // fetching, caching, and historical fallbacks automatically.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReadingScreen(date: selectedDate),
+      ),
+    ).then((_) {
+      // Refresh data when returning (in case a new entry was made)
+      _loadInitialData();
+    });
   }
 
   // Removed _buildTagsSection
@@ -778,7 +685,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppTheme.sacredDark,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 12),

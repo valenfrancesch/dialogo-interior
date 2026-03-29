@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart' as custom_auth;
+import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 import 'privacy_policy.dart';
 import 'about_screen.dart';
@@ -23,11 +24,11 @@ class SettingsScreen extends StatelessWidget {
     final headerStyle = GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.bold,
-      color: AppTheme.accentMint, // Sacred Red
+      color: AppTheme.sacredRed, // Standardized
     );
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.zero,
@@ -45,14 +46,14 @@ class SettingsScreen extends StatelessWidget {
                       width: 32,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      'Diálogo interior',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.sacredRed,
+                      Text(
+                        'Diálogo interior',
+                        style: GoogleFonts.montserrat(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.sacredRed,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -66,7 +67,7 @@ class SettingsScreen extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.sacredDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -87,10 +88,12 @@ class SettingsScreen extends StatelessWidget {
                     final isImmersive = prefs.getBool('isImmersiveModeEnabled') ?? true;
                     return SwitchListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                      title: const Text('Modo Oración (Pantalla completa)', style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.w500)),
-                      subtitle: Text('Oculta la barra de estado para una lectura sin distracciones', style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.6), fontSize: 12)),
+                      title: Text('Modo Oración (Pantalla completa)', 
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w500)),
+                      subtitle: Text('Oculta la barra de estado para una lectura sin distracciones', 
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
                       value: isImmersive,
-                      activeColor: AppTheme.accentMint,
+                      activeColor: AppTheme.sacredRed,
                       onChanged: (val) {
                         prefs.setBool('isImmersiveModeEnabled', val);
                         setState(() {});
@@ -98,13 +101,74 @@ class SettingsScreen extends StatelessWidget {
                       secondary: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentMint.withOpacity(0.1),
+                          color: AppTheme.sacredRed.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.fullscreen, color: AppTheme.accentMint),
+                        child: const Icon(Icons.fullscreen, color: AppTheme.sacredRed),
                       ),
                     );
                   },
+                );
+              },
+            ),
+            // Font Size Slider
+            Consumer<ReadingFontSizeProvider>(
+              builder: (context, fontSizeProvider, _) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentMint.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.text_fields, color: AppTheme.accentMint),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Tamaño del texto',
+                                  style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.w500),
+                                ),
+                                Text(
+                                  'Tamaño actual: ${fontSizeProvider.fontSize.round()}px',
+                                  style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.6), fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: fontSizeProvider.fontSize,
+                        min: ReadingFontSizeProvider.minSize,
+                        max: ReadingFontSizeProvider.maxSize,
+                        divisions: 10,
+                        activeColor: AppTheme.accentMint,
+                        inactiveColor: AppTheme.accentMint.withOpacity(0.2),
+                        label: '${fontSizeProvider.fontSize.round()}px',
+                        onChanged: (val) => fontSizeProvider.setFontSize(val),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('A', style: TextStyle(fontSize: 12, color: AppTheme.sacredDark.withOpacity(0.4))),
+                            Text('A', style: TextStyle(fontSize: 20, color: AppTheme.sacredDark.withOpacity(0.4), fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -118,6 +182,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 10),
             if (isGuest)
               _buildSettingsTile(
+                context: context,
                 icon: Icons.login,
                 title: 'Iniciar sesión',
                 subtitle: 'Crea tu cuenta para guardar tus reflexiones',
@@ -130,6 +195,7 @@ class SettingsScreen extends StatelessWidget {
               )
             else
               _buildSettingsTile(
+                context: context,
                 icon: Icons.person_outline,
                 title: 'Perfil',
                 subtitle: authProvider.userFullName,
@@ -150,6 +216,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _buildSettingsTile(
+              context: context,
               icon: Icons.shield_outlined,
               title: 'Privacidad y Términos',
               onTap: () {
@@ -160,6 +227,7 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
             _buildSettingsTile(
+              context: context,
               icon: Icons.favorite_border,
               title: 'Donar',
               onTap: () {
@@ -167,6 +235,7 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
             _buildSettingsTile(
+              context: context,
               icon: Icons.info_outline,
               title: 'Acerca de',
               onTap: () {
@@ -177,6 +246,7 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
             _buildSettingsTile(
+              context: context,
               icon: Icons.support_agent,
               title: 'Soporte',
               onTap: () {
@@ -208,13 +278,17 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ],
-              const SizedBox(height: 40),
+              const SizedBox(height: 60),
               Center(
                 child: Text(
                   'Diálogo Interior v1.0.0',
-                  style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.4), fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), 
+                    fontSize: 12
+                  ),
                 ),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -223,6 +297,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSettingsTile({
+    required BuildContext context,
     required IconData icon,
     required String title,
     String? subtitle,
@@ -234,14 +309,14 @@ class SettingsScreen extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppTheme.accentMint.withOpacity(0.1),
+          color: AppTheme.sacredRed.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: AppTheme.accentMint),
+        child: Icon(icon, color: AppTheme.sacredRed),
       ),
-      title: Text(title, style: const TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.w500)),
-      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.6), fontSize: 12)) : null,
-      trailing: showChevron ? Icon(Icons.chevron_right, color: AppTheme.sacredDark.withOpacity(0.3)) : null,
+      title: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w500)),
+      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 12)) : null,
+      trailing: showChevron ? Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)) : null,
       onTap: onTap,
     );
   }
@@ -255,12 +330,12 @@ class SettingsScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        title: const Text('Cerrar Sesión', style: TextStyle(color: AppTheme.sacredDark)),
-        content: const Text('¿Estás seguro de que quieres cerrar sesión?', style: TextStyle(color: AppTheme.sacredDark)),
+        title: Text('Cerrar Sesión', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+        content: Text('¿Estás seguro de que quieres cerrar sesión?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: AppTheme.sacredDark)),
+            child: Text('Cancelar', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -282,14 +357,14 @@ class SettingsScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        title: const Text('Soporte', style: TextStyle(color: AppTheme.sacredDark)),
+        title: Text('Soporte', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('¿Necesitas ayuda o tienes alguna sugerencia?', style: TextStyle(color: AppTheme.sacredDark)),
+            Text('¿Necesitas ayuda o tienes alguna sugerencia?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 16),
-            const Text('Escríbenos a:', style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.bold)),
+            Text('Escríbenos a:', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
             GestureDetector(
               onTap: () => _launchEmail('dialogo.interior.app@gmail.com'),
               child: Text(
@@ -333,16 +408,16 @@ class SettingsScreen extends StatelessWidget {
           children: [
             const Icon(Icons.volunteer_activism, color: AppTheme.sacredRed, size: 24),
             const SizedBox(width: 8),
-            const Text('Apóyanos', style: TextStyle(color: AppTheme.sacredDark)),
+            Text('Apóyanos', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Tu ayuda es fundamental para mantener esta aplicación gratuita y sin publicidad. ¡Dios te bendiga!',
-              style: TextStyle(color: AppTheme.sacredDark, fontStyle: FontStyle.italic),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontStyle: FontStyle.italic),
             ),
             const SizedBox(height: 24),
             ElevatedButton(

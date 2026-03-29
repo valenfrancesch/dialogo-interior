@@ -36,10 +36,14 @@ class CacheManager {
   void setUntilEndOfDay<T>(String key, T data) {
     final now = DateTime.now();
     final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
-    
+    _cache[key] = CacheEntry(data: data, expiresAt: endOfDay);
+  }
+
+  // Set cached data with no expiry — persists until explicitly invalidated
+  void setForever<T>(String key, T data) {
     _cache[key] = CacheEntry(
       data: data,
-      expiresAt: endOfDay,
+      expiresAt: DateTime(9999), // effectively never expires
     );
   }
 
@@ -67,6 +71,22 @@ class CacheManager {
     invalidate('library_reflections');
     invalidate('library_calendar');
     invalidate('library_growth');
+  }
+
+  // Invalidate the gospel reflections cache for the gospel that owns [gospelQuote]
+  // e.g. "Jn 15,1-8" → clears 'gospel_reflections_Juan'
+  void invalidateGospelReflections(String gospelQuote) {
+    final q = gospelQuote.trim();
+    if (q.startsWith('Mt') || q.startsWith('Mateo')) {
+      invalidate('gospel_reflections_Mateo');
+    } else if (q.startsWith('Mc') || q.startsWith('Marcos')) {
+      invalidate('gospel_reflections_Marcos');
+    } else if (q.startsWith('Lc') || q.startsWith('Lucas')) {
+      invalidate('gospel_reflections_Lucas');
+    } else if (q.startsWith('Jn') || q.startsWith('Juan')) {
+      invalidate('gospel_reflections_Juan');
+    }
+    // Non-gospel readings (FR, PS, SR) are not cached per-gospel, so no-op
   }
 
   // Invalidate reading screen caches (for a specific date)

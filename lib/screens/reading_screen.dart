@@ -23,13 +23,17 @@ import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatfor
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_data.dart';
 import 'auth_screen.dart';
+import 'package:upgrader/upgrader.dart';
 import '../widgets/kindle_clock.dart';
+import '../providers/app_providers.dart';
 import '../widgets/share_bottom_sheet.dart';
 
 class ReadingScreen extends StatefulWidget {
   final GospelData? gospel;
+  final DateTime? date;
+  final String? gospelReference;
 
-  const ReadingScreen({super.key, this.gospel});
+  const ReadingScreen({super.key, this.gospel, this.date, this.gospelReference});
 
   @override
   State<ReadingScreen> createState() => _ReadingScreenState();
@@ -44,7 +48,10 @@ class _ReadingScreenState extends State<ReadingScreen> {
     if (widget.gospel != null) {
       _gospelFuture = Future.value(widget.gospel!);
     } else {
-      _gospelFuture = GospelRepository.fetchGospelData(DateTime.now());
+      _gospelFuture = GospelRepository.fetchGospelData(
+        widget.date ?? DateTime.now(),
+        reference: widget.gospelReference,
+      );
     }
   }
 
@@ -62,7 +69,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
           } else if (snapshot.hasData) {
             return _ReadingContent(
               gospel: snapshot.data!,
-              showBackButton: widget.gospel != null,
+              showBackButton: widget.gospel != null || widget.date != null,
             );
           }
           return _buildErrorState('Estado desconocido');
@@ -132,7 +139,10 @@ class _ReadingScreenState extends State<ReadingScreen> {
               ElevatedButton.icon(
                 onPressed: () {
                   setState(() {
-                    _gospelFuture = GospelRepository.fetchGospelData(DateTime.now());
+                    _gospelFuture = GospelRepository.fetchGospelData(
+                      widget.date ?? DateTime.now(),
+                      reference: widget.gospelReference,
+                    );
                   });
                 },
                 icon: const Icon(Icons.refresh),
@@ -208,6 +218,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   final FocusNode _reflectionFocusNode = FocusNode();
   final FocusNode _purposeFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  late PageController _pageController;
+  late final Upgrader _upgrader;
   bool _isImmersiveMode = false;
 
   bool get _isGuest => !Provider.of<custom_auth.AuthProvider>(context, listen: false).isAuthenticated;
@@ -303,9 +315,9 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       setState(() {
         _highlights.add(Highlight(text: text, source: source, title: title));
       });
-      if (scheduleReminder) {
+      /* if (scheduleReminder) {
         NotificationService().scheduleFavoriteReminder(text, 20, 0);
-      }
+      } */
       _saveReflection();
     }
   }
@@ -325,30 +337,40 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     _tabs = [];
     _tabLabels = [];
     
-    // Dynamically add tabs that have content
-    if (widget.gospel.firstReading.isNotEmpty && widget.gospel.firstReading != 'Lectura Histórica') {
+    // Dynamically add tabs that have real content
+    if (widget.gospel.firstReading.isNotEmpty && 
+        widget.gospel.firstReading != 'Lectura Histórica' &&
+        widget.gospel.firstReading != 'No disponible') {
       _tabs.add('1ª Lectura');
       _tabLabels.add('1ª Lec');
     }
     
-    if (widget.gospel.psalm.isNotEmpty && widget.gospel.psalm != 'Lectura desde Historial') {
+    if (widget.gospel.psalm.isNotEmpty && 
+        widget.gospel.psalm != 'Lectura desde Historial' &&
+        widget.gospel.psalm != 'No disponible') {
       _tabs.add('Salmo');
       _tabLabels.add('Salmo');
     }
     
-    if (widget.gospel.secondReading != null && widget.gospel.secondReading!.isNotEmpty) {
+    if (widget.gospel.secondReading != null && 
+        widget.gospel.secondReading!.isNotEmpty &&
+        widget.gospel.secondReading != 'No disponible') {
       _tabs.add('2ª Lectura');
       _tabLabels.add('2ª Lec');
     }
     
-    if (widget.gospel.evangeliumText.isNotEmpty) {
+    if (widget.gospel.evangeliumText.isNotEmpty && 
+        widget.gospel.evangeliumText != 'No disponible' &&
+        !widget.gospel.evangeliumText.contains('Contenido no encontrado')) {
       _tabs.add('Evangelio');
       _tabLabels.add('Evangelio');
     }
     
     if (widget.gospel.commentBody.isNotEmpty && 
+        widget.gospel.commentTitle != 'Reflexión histórica' &&
+        widget.gospel.commentTitle != 'Reflexión Guardada' &&
         widget.gospel.commentBody != 'Reflexión disponible en evangelizo.org' &&
-        widget.gospel.commentTitle != 'Reflexión Guardada') {
+        widget.gospel.commentBody != 'No disponible') {
       _tabs.add('Comentario');
       _tabLabels.add('Comentario');
     }
@@ -377,6 +399,12 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       
       _loadSavedReflection();
     }
+
+    _pageController = PageController(initialPage: _selectedIndex);
+    _upgrader = Upgrader(
+      durationUntilAlertAgain: const Duration(days: 2),
+      messages: UpgraderMessages(code: 'es'),
+    );
   }
 
   Future<void> _checkImmersiveMode() async {
@@ -433,6 +461,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     _scrollController.dispose();
+    _pageController.dispose();
     _reflectionFocusNode.dispose();
     _purposeFocusNode.dispose();
     _responseController.dispose();
@@ -584,28 +613,36 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   void _shareReflection() {
     final availableLectures = <Lecture>[];
     
-    if (widget.gospel.firstReading.isNotEmpty && widget.gospel.firstReading != 'Lectura Histórica') {
+    if (widget.gospel.firstReading.isNotEmpty && 
+        widget.gospel.firstReading != 'Lectura Histórica' &&
+        widget.gospel.firstReading != 'No disponible') {
       availableLectures.add(Lecture(
         title: '1ª Lectura',
         content: TextFormatter.formatReadingText(widget.gospel.firstReading),
         reference: widget.gospel.firstReadingReference,
       ));
     }
-    if (widget.gospel.psalm.isNotEmpty && widget.gospel.psalm != 'Lectura desde Historial') {
+    if (widget.gospel.psalm.isNotEmpty && 
+        widget.gospel.psalm != 'Lectura desde Historial' &&
+        widget.gospel.psalm != 'No disponible') {
       availableLectures.add(Lecture(
         title: 'Salmo',
         content: TextFormatter.formatPsalm(widget.gospel.psalm),
         reference: widget.gospel.psalmReference,
       ));
     }
-    if (widget.gospel.secondReading != null && widget.gospel.secondReading!.isNotEmpty) {
+    if (widget.gospel.secondReading != null && 
+        widget.gospel.secondReading!.isNotEmpty &&
+        widget.gospel.secondReading != 'No disponible') {
       availableLectures.add(Lecture(
         title: '2ª Lectura',
         content: TextFormatter.formatReadingText(widget.gospel.secondReading!),
         reference: widget.gospel.secondReadingReference,
       ));
     }
-    if (widget.gospel.evangeliumText.isNotEmpty) {
+    if (widget.gospel.evangeliumText.isNotEmpty && 
+        widget.gospel.evangeliumText != 'No disponible' &&
+        !widget.gospel.evangeliumText.contains('Contenido no encontrado')) {
       availableLectures.add(Lecture(
         title: 'Evangelio',
         content: TextFormatter.formatReadingText(widget.gospel.evangeliumText),
@@ -613,8 +650,10 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       ));
     }
     if (widget.gospel.commentBody.isNotEmpty && 
+        widget.gospel.commentTitle != 'Reflexión histórica' &&
+        widget.gospel.commentTitle != 'Reflexión Guardada' &&
         widget.gospel.commentBody != 'Reflexión disponible en evangelizo.org' &&
-        widget.gospel.commentTitle != 'Reflexión Guardada') {
+        widget.gospel.commentBody != 'No disponible') {
       availableLectures.add(Lecture(
         title: 'Comentario',
         content: widget.gospel.commentBody,
@@ -651,8 +690,19 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       final dateKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       await HomeWidget.saveWidgetData<String>('widget_date', dateKey);
       
+      // Sort highlights: Gospel ('Evangelio') first, then everything else
+      final sortedHighlights = List<Highlight>.from(_highlights);
+      sortedHighlights.sort((a, b) {
+        if (a.source == 'Evangelio' && b.source != 'Evangelio') return -1;
+        if (a.source != 'Evangelio' && b.source == 'Evangelio') return 1;
+        return 0;
+      });
+
       // Always save highlighted text (even if empty to clear previous value)
-      final highlightToSave = _highlights.isNotEmpty ? _highlights.first.text : 'Abre la app para leer hoy';
+      final highlightToSave = sortedHighlights.isNotEmpty 
+          ? sortedHighlights.map((h) => '• ${h.text}').join('\n\n')
+          : '¿Qué mensaje te habla hoy?\nAbre la app para leer el Evangelio';
+          
       await HomeWidget.saveWidgetData<String>(
         'highlighted_text', 
         highlightToSave
@@ -662,7 +712,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
       final purposeText = _purposeController.text.trim();
       await HomeWidget.saveWidgetData<String>(
         'purpose', 
-        purposeText.isNotEmpty ? purposeText : ''
+        purposeText
       );
       
       // Update the widget
@@ -688,6 +738,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
 
   Widget build(BuildContext context) {
     Provider.of<custom_auth.AuthProvider>(context); // Trigger rebuild on auth changes
+    Provider.of<ReadingFontSizeProvider>(context); // Trigger rebuild on font size changes
     return SafeArea(
       top: true,
       bottom: false,
@@ -698,55 +749,95 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
           children: [
             if (_isImmersiveMode)
               Container(
-                color: AppTheme.primaryDarkBg,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 width: double.infinity,
                 padding: const EdgeInsets.only(left: 16, top: 4),
                 child: const KindleClock(),
               ),
             Expanded(
-              child: CustomScrollView(
+              child: NestedScrollView(
                 controller: _scrollController,
-                physics: const ClampingScrollPhysics(),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: _buildHeader(),
-                  ),
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _SliverTabHeaderDelegate(
-                      minHeight: 66,
-                      maxHeight: 66,
-                      child: Container(
-                        color: AppTheme.primaryDarkBg,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: TextSegmentToggle(
-                          segments: _tabLabels,
-                          initialIndex: _selectedIndex,
-                          onChanged: (index) {
-                            FocusScope.of(context).unfocus();
-                            _saveReflection();
-                            setState(() {
-                              _selectedIndex = index;
-                            });
-                            if (_scrollController.hasClients) {
-                              _scrollController.animateTo(
-                                0.0,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOut,
-                              );
-                            }
-                          },
+                headerSliverBuilder: (context, innerBoxIsScrolled) {
+                  return [
+                    SliverToBoxAdapter(
+                      child: _buildHeader(),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          cardColor: Theme.of(context).cardTheme.color,
+                          cardTheme: const CardThemeData(elevation: 2),
+                          textTheme: Theme.of(context).textTheme.copyWith(
+                            titleMedium: GoogleFonts.inter(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.bold),
+                            bodyMedium: GoogleFonts.inter(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8)),
+                          ),
+                          elevatedButtonTheme: ElevatedButtonThemeData(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.sacredRed,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                        child: UpgradeCard(
+                          upgrader: _upgrader,
+                          margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          showReleaseNotes: false,
+                          showIgnore: false,
                         ),
                       ),
                     ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                    sliver: SliverToBoxAdapter(
-                      child: _buildCurrentContent(),
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _SliverTabHeaderDelegate(
+                        minHeight: 66,
+                        maxHeight: 66,
+                        child: Container(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: TextSegmentToggle(
+                            segments: _tabLabels,
+                            initialIndex: _selectedIndex,
+                            onChanged: (index) {
+                              FocusScope.of(context).unfocus();
+                              _saveReflection();
+                              setState(() {
+                                _selectedIndex = index;
+                              });
+                              _pageController.animateToPage(
+                                index,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ];
+                },
+                body: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _tabs.length,
+                  onPageChanged: (index) {
+                    FocusScope.of(context).unfocus();
+                    _saveReflection();
+                    setState(() {
+                      _selectedIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      child: _buildContentForIndex(index),
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -755,16 +846,16 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     );
   }
 
-  Widget _buildCurrentContent() {
-    final currentTab = _tabs[_selectedIndex];
+  Widget _buildContentForIndex(int index) {
+    final currentTab = _tabs[index];
     Widget readingContent;
 
     if (currentTab == '1ª Lectura') {
-      readingContent = _buildReadingTab(widget.gospel.firstReading, widget.gospel.firstReadingReference);
+      readingContent = _buildReadingTab(widget.gospel.firstReading, widget.gospel.firstReadingReference, widget.gospel.firstReadingLongTitle);
     } else if (currentTab == 'Salmo') {
-      readingContent = _buildPsalmTab(widget.gospel.psalm, widget.gospel.psalmReference);
+      readingContent = _buildPsalmTab(widget.gospel.psalm, widget.gospel.psalmReference, widget.gospel.psalmLongTitle);
     } else if (currentTab == '2ª Lectura') {
-      readingContent = _buildReadingTab(widget.gospel.secondReading!, widget.gospel.secondReadingReference!);
+      readingContent = _buildReadingTab(widget.gospel.secondReading!, widget.gospel.secondReadingReference!, widget.gospel.secondReadingLongTitle);
     } else if (currentTab == 'Evangelio') {
       readingContent = _buildGospelTab();
     } else if (currentTab == 'Comentario') {
@@ -774,7 +865,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     }
 
     return Column(
-      key: ValueKey(_selectedIndex),
+      key: ValueKey(index),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         readingContent,
@@ -787,7 +878,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     String dateStr = _formatDate(widget.gospel.date);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      color: AppTheme.primaryDarkBg,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -805,7 +896,9 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                   style: GoogleFonts.montserrat(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.sacredRed,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? AppTheme.sacredDark 
+                        : AppTheme.sacredRed,
                   ),
                 ),
               ],
@@ -845,7 +938,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                         dateStr,
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: AppTheme.sacredDark.withOpacity(0.7),
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -901,7 +994,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
   void _showPrepareHeartModal() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.primaryDarkBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1062,11 +1155,13 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     );
   }
 
-  Widget _buildReadingTab(String text, String reference) {
+  Widget _buildReadingTab(String text, String reference, [String? longTitle]) {
     const String sourceString = 'Extraído de la Biblia: Libro del Pueblo de Dios';
     final bool hasSource = text.contains(sourceString);
     final String cleanText = text.replaceFirst(sourceString, '').trim();
     final String source = _tabs[_selectedIndex];
+
+    final double readingFontSize = Provider.of<ReadingFontSizeProvider>(context, listen: false).fontSize;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1078,7 +1173,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  reference,
+                  longTitle ?? reference,
                   style: GoogleFonts.montserrat(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -1089,7 +1184,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                 SelectableTextContent(
                   text: TextFormatter.formatReadingText(cleanText),
                   textStyle: GoogleFonts.inter(
-                    fontSize: 16,
+                    fontSize: readingFontSize,
                     height: 1.8,
                     color: AppTheme.sacredDark.withOpacity(0.9),
                   ),
@@ -1115,11 +1210,13 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     );
   }
 
-  Widget _buildPsalmTab(String text, String reference) {
+  Widget _buildPsalmTab(String text, String reference, [String? longTitle]) {
     const String sourceString = 'Extraído de la Biblia: Libro del Pueblo de Dios';
     final bool hasSource = text.contains(sourceString);
     final String cleanText = text.replaceFirst(sourceString, '').trim();
     final String source = _tabs[_selectedIndex];
+
+    final double readingFontSize = Provider.of<ReadingFontSizeProvider>(context, listen: false).fontSize;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1131,7 +1228,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  reference,
+                  longTitle ?? reference,
                   style: GoogleFonts.montserrat(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -1142,7 +1239,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                 SelectableTextContent(
                   text: TextFormatter.formatPsalm(cleanText),
                   textStyle: GoogleFonts.inter(
-                    fontSize: 16,
+                    fontSize: readingFontSize,
                     height: 1.8,
                     color: AppTheme.sacredDark.withOpacity(0.9),
                     fontStyle: FontStyle.italic,
@@ -1176,6 +1273,8 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
     final String cleanText = text.replaceFirst(sourceString, '').trim();
     final String source = _tabs[_selectedIndex];
 
+    final double readingFontSize = Provider.of<ReadingFontSizeProvider>(context, listen: false).fontSize;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1186,7 +1285,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.gospel.title,
+                  widget.gospel.gospelLongTitle ?? widget.gospel.title,
                   style: GoogleFonts.montserrat(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -1197,7 +1296,7 @@ class _ReadingContentState extends State<_ReadingContent> with SingleTickerProvi
                 SelectableTextContent(
                   text: TextFormatter.formatReadingText(cleanText),
                   textStyle: GoogleFonts.inter(
-                    fontSize: 16,
+                    fontSize: readingFontSize,
                     fontWeight: FontWeight.w400,
                     color: AppTheme.sacredDark.withOpacity(0.9),
                     height: 1.8,

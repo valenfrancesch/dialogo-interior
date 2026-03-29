@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/prayer_entry.dart';
+import '../services/cache_manager.dart';
 
 class PrayerRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final CacheManager _cache = CacheManager();
 
   /// Obtiene el ID del usuario actual desde Firebase Auth
   String? _getCurrentUserId() {
@@ -36,6 +38,11 @@ class PrayerRepository {
               merge: true,
             ),
           );
+
+      // Invalidate the gospel reflections cache so it re-fetches on next visit
+      _cache.invalidateGospelReflections(entryToSave.gospelQuote);
+      // Also invalidate library caches (stats, streak, calendar)
+      _cache.invalidateLibrary();
 
       return entryToSave.id!;
     } catch (e) {
@@ -226,12 +233,31 @@ class PrayerRepository {
         throw Exception('Usuario no autenticado.');
       }
 
+      // 1. Fetch document first to get gospelQuote for cache invalidation
+      final doc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('entries')
+          .doc(entryId)
+          .get();
+
+      if (doc.exists) {
+        final quote = doc.data()?['gospelQuote'] as String?;
+        if (quote != null) {
+          _cache.invalidateGospelReflections(quote);
+        }
+      }
+
+      // 2. Perform the delete
       await _firestore
           .collection('users')
           .doc(userId)
           .collection('entries')
           .doc(entryId)
           .delete();
+
+      // 3. Also invalidate library scores/stats
+      _cache.invalidateLibrary();
     } catch (e) {
       throw Exception('Error al eliminar reflexión: $e');
     }

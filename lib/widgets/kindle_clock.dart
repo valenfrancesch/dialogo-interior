@@ -18,16 +18,27 @@ class _KindleClockState extends State<KindleClock> {
   @override
   void initState() {
     super.initState();
-    _updateTime();
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
-      _updateTime();
+    // 1. Configuramos la hora inicial
+    _currentTime = _formatTime(DateTime.now());
+    
+    // 2. Revisamos cada segundo para estar perfectamente sincronizados
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _checkAndUpdateTime();
     });
   }
 
-  void _updateTime() {
-    setState(() {
-      _currentTime = DateFormat('HH:mm').format(DateTime.now());
-    });
+  String _formatTime(DateTime time) {
+    return DateFormat('HH:mm').format(time);
+  }
+
+  void _checkAndUpdateTime() {
+    final newTime = _formatTime(DateTime.now());
+    // Solo hacemos setState si el texto de la hora realmente cambió
+    if (newTime != _currentTime) {
+      setState(() {
+        _currentTime = newTime;
+      });
+    }
   }
 
   @override

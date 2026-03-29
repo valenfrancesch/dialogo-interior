@@ -4,10 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import '../models/prayer_entry.dart';
-import '../repositories/prayer_repository.dart';
 import '../services/bible_service.dart';
 import '../services/cache_manager.dart';
 
+import 'reading_screen.dart';
 
 class GospelReflectionsScreen extends StatefulWidget {
   final String gospelName; // "Mateo", "Marcos", "Lucas", "Juan"
@@ -24,18 +24,12 @@ class GospelReflectionsScreen extends StatefulWidget {
 }
 
 class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
-  final PrayerRepository _prayerRepository = PrayerRepository();
   final BibleService _bibleService = BibleService();
   final CacheManager _cache = CacheManager();
-  
-  List<PrayerEntry> _filteredEntries = [];
+
+  List<PrayerEntry> _entries = [];
   bool _isLoading = true;
-  
-  // Pagination state
-  DocumentSnapshot<Map<String, dynamic>>? _lastDocument;
-  bool _hasMoreData = true;
-  bool _isLoadingMore = false;
-  List<PrayerEntry> _allEntries = [];
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -43,207 +37,102 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
     _loadReflections();
   }
 
-  Future<void> _loadReflections() async {
-    // Try to get from cache first
-    final cacheKey = '${CacheKeys.gospelReflections}_${widget.gospelName}';
-    final cachedEntries = _cache.get<List<PrayerEntry>>(cacheKey);
-    
-    if (cachedEntries != null) {
-      // Use cached data
-      final bookPrefixes = _getBookPrefixes(widget.gospelName);
-      
-      setState(() {
-        _allEntries = cachedEntries;
-        _filteredEntries = cachedEntries.where((entry) {
-          String quote = entry.gospelQuote.trim();
-          return bookPrefixes.any((prefix) => quote.startsWith(prefix));
-        }).toList();
+  // Returns the short book prefix used in gospelQuote references (e.g. "Jn")
+  String _getShortPrefix(String gospelName) {
+    switch (gospelName) {
+      case 'Mateo':  return 'Mt';
+      case 'Marcos': return 'Mc';
+      case 'Lucas':  return 'Lc';
+      case 'Juan':   return 'Jn';
+      default:       return '';
+    }
+  }
 
-        _filteredEntries.sort((a, b) {
-          final refA = _bibleService.parseReference(a.gospelQuote);
-          final refB = _bibleService.parseReference(b.gospelQuote);
-          
-          if (refA == null && refB == null) return 0;
-          if (refA == null) return 1;
-          if (refB == null) return -1;
-          
-          int chapterA = refA['chapter'] ?? 0;
-          int chapterB = refB['chapter'] ?? 0;
-          
-          if (chapterA != chapterB) {
-            return chapterA.compareTo(chapterB);
-          }
-          
-          int versicleA = refA['startVersicle'] ?? 0;
-          int versicleB = refB['startVersicle'] ?? 0;
-          
-          return versicleA.compareTo(versicleB);
-        });
-
-        _hasMoreData = cachedEntries.length == 10;
-        _isLoading = false;
-      });
-      
-      if (cachedEntries.isNotEmpty) {
-        _fetchLastDocumentSnapshot();
-      }
+  Future<void> _loadReflections({bool forceRefresh = false}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      setState(() { _isLoading = false; _errorMessage = 'No hay sesión activa.'; });
       return;
     }
-    
-    // No cache, fetch from Firebase
-    setState(() => _isLoading = true);
-    
-    try {
-      // Fetch first page (10 items)
-      final entries = await _prayerRepository.getUserReflections(limit: 10);
-      
-      // Cache the entries until end of day
-      _cache.setUntilEndOfDay(cacheKey, entries);
-      
-      final bookPrefixes = _getBookPrefixes(widget.gospelName);
 
-      if (mounted) {
-        setState(() {
-          _allEntries = entries;
-          _filteredEntries = entries.where((entry) {
-            String quote = entry.gospelQuote.trim();
-            return bookPrefixes.any((prefix) => quote.startsWith(prefix));
-          }).toList();
+    final cacheKey = 'gospel_reflections_${widget.gospelName}';
 
-          _filteredEntries.sort((a, b) {
-            final refA = _bibleService.parseReference(a.gospelQuote);
-            final refB = _bibleService.parseReference(b.gospelQuote);
-            
-            if (refA == null && refB == null) return 0;
-            if (refA == null) return 1;
-            if (refB == null) return -1;
-            
-            int chapterA = refA['chapter'] ?? 0;
-            int chapterB = refB['chapter'] ?? 0;
-            
-            if (chapterA != chapterB) {
-              return chapterA.compareTo(chapterB);
-            }
-            
-            int versicleA = refA['startVersicle'] ?? 0;
-            int versicleB = refB['startVersicle'] ?? 0;
-            
-            return versicleA.compareTo(versicleB);
-          });
-
-          _hasMoreData = entries.length == 10;
-          _isLoading = false;
-        });
-        
-        if (entries.isNotEmpty) {
-          _fetchLastDocumentSnapshot();
-        }
+    // 1. Try cache first (skip on pull-to-refresh)
+    if (!forceRefresh) {
+      final cached = _cache.get<List<PrayerEntry>>(cacheKey);
+      if (cached != null) {
+        _applyEntries(cached);
+        return;
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-      print("Error loading reflections: $e");
     }
-  }
 
-  Future<void> _fetchLastDocumentSnapshot() async {
-    if (_allEntries.isEmpty) return;
-    
+    setState(() { _isLoading = true; _errorMessage = null; });
+
     try {
-      final lastEntry = _allEntries.last;
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(FirebaseAuth.instance.currentUser?.uid)
-          .collection('entries')
-          .doc(lastEntry.id)
-          .get();
-      
-      if (mounted) {
-        setState(() {
-          _lastDocument = doc;
-        });
+      final prefix = _getShortPrefix(widget.gospelName);
+      if (prefix.isEmpty) {
+        setState(() { _isLoading = false; });
+        return;
       }
-    } catch (e) {
-      // Silently fail
-    }
-  }
 
-  Future<void> _loadMoreData() async {
-    if (_isLoadingMore || !_hasMoreData || _lastDocument == null) return;
-    
-    setState(() => _isLoadingMore = true);
-    
-    try {
+      // 2. Index-based server-side query — uses the composite index:
+      //    entries: gospelQuote ASC + date DESC + __name__ DESC
+      //
+      // Firestore range query on gospelQuote filters server-side, so only
+      // entries matching this gospel are transferred. No client-side filtering.
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .doc(uid)
           .collection('entries')
+          .where('gospelQuote', isGreaterThanOrEqualTo: prefix)
+          .where('gospelQuote', isLessThan: '$prefix\uf8ff')
+          .orderBy('gospelQuote')
           .orderBy('date', descending: true)
-          .startAfterDocument(_lastDocument!)
-          .limit(10)
-          .get();
-      
-      final newEntries = snapshot.docs
+          .get(const GetOptions(source: Source.serverAndCache));
+
+      final entries = snapshot.docs
           .map((doc) => PrayerEntry.fromFirestore(doc))
           .toList();
-      
-      final bookPrefixes = _getBookPrefixes(widget.gospelName);
-      final newFiltered = newEntries.where((entry) {
-        String quote = entry.gospelQuote.trim();
-        return bookPrefixes.any((prefix) => quote.startsWith(prefix));
-      }).toList();
-      
-      if (mounted) {
-        setState(() {
-          _allEntries.addAll(newEntries);
-          _filteredEntries.addAll(newFiltered);
-          _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : _lastDocument;
-          _hasMoreData = snapshot.docs.length == 10;
-          _isLoadingMore = false;
-        });
-        
-        // Re-sort after adding new entries
-        _filteredEntries.sort((a, b) {
-          final refA = _bibleService.parseReference(a.gospelQuote);
-          final refB = _bibleService.parseReference(b.gospelQuote);
-          
-          if (refA == null && refB == null) return 0;
-          if (refA == null) return 1;
-          if (refB == null) return -1;
-          
-          int chapterA = refA['chapter'] ?? 0;
-          int chapterB = refB['chapter'] ?? 0;
-          
-          if (chapterA != chapterB) {
-            return chapterA.compareTo(chapterB);
-          }
-          
-          int versicleA = refA['startVersicle'] ?? 0;
-          int versicleB = refB['startVersicle'] ?? 0;
-          
-          return versicleA.compareTo(versicleB);
-        });
-      }
+
+      // 3. Cache indefinitely — only invalidated when user writes a new reflection
+      //    for this gospel (handled in PrayerRepository.saveReflection)
+      _cache.setForever(cacheKey, entries);
+
+      if (mounted) _applyEntries(entries);
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingMore = false);
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error al cargar las reflexiones.';
+        });
+        debugPrint('GospelReflectionsScreen error: $e');
       }
     }
   }
 
-  List<String> _getBookPrefixes(String name) {
-    switch (name) {
-      case 'Mateo': return ['Mt', 'Mateo'];
-      case 'Marcos': return ['Mc', 'Marcos'];
-      case 'Lucas': return ['Lc', 'Lucas'];
-      case 'Juan': return ['Jn', 'Juan'];
-      default: return [];
-    }
+  // Sort by canonical order (chapter → versicle) and update state
+  void _applyEntries(List<PrayerEntry> entries) {
+    final sorted = List<PrayerEntry>.from(entries);
+    sorted.sort((a, b) {
+      final refA = _bibleService.parseReference(a.gospelQuote);
+      final refB = _bibleService.parseReference(b.gospelQuote);
+      if (refA == null && refB == null) return 0;
+      if (refA == null) return 1;
+      if (refB == null) return -1;
+      final chapterDiff = (refA['chapter'] ?? 0).compareTo(refB['chapter'] ?? 0);
+      if (chapterDiff != 0) return chapterDiff;
+      return (refA['startVersicle'] ?? 0).compareTo(refB['startVersicle'] ?? 0);
+    });
+
+    setState(() {
+      _entries = sorted;
+      _isLoading = false;
+    });
   }
 
+  // ── Bible text popup ──────────────────────────────────────────────────────
+
   Future<void> _showBibleText(String reference) async {
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -253,7 +142,6 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
     try {
       final parsed = _bibleService.parseReference(reference);
       String content;
-      
       if (parsed != null) {
         content = await _bibleService.getVersiclesText(
           parsed['book'],
@@ -262,11 +150,11 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
           parsed['endVersicle'],
         );
       } else {
-        content = 'No se pudo encontrar el texto para la referencia: $reference';
+        content = 'No se pudo encontrar el texto para: $reference';
       }
 
       if (mounted) {
-        Navigator.pop(context); // Close loading
+        Navigator.pop(context);
         _showTextModal(reference, content);
       }
     } catch (e) {
@@ -318,10 +206,10 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
               child: SingleChildScrollView(
                 child: Text(
                   content,
-                  style: GoogleFonts.merriweather( // Serif for reading
+                  style: GoogleFonts.merriweather(
                     fontSize: 16,
                     height: 1.6,
-                    color: AppTheme.sacredDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -332,25 +220,27 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
     );
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
   String _formatDate(DateTime date) {
-     const months = [
+    const months = [
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
     return '${date.day} de ${months[date.month - 1]}';
   }
 
-
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.sacredCream,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.sacredDark),
+          icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -361,176 +251,199 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
             color: AppTheme.sacredDark,
           ),
         ),
-        
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.sacredRed))
-          : _filteredEntries.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.book_outlined, size: 64, color: AppTheme.sacredGold.withOpacity(0.5)),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Sin reflexiones para ${widget.gospelName}',
-                        style: GoogleFonts.inter(
-                          color: AppTheme.sacredDark.withOpacity(0.6),
-                          fontSize: 16,
+      body: SafeArea(
+        child: _buildBody(),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.sacredRed));
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off, size: 48, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
+            const SizedBox(height: 12),
+            Text(_errorMessage!, style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => _loadReflections(forceRefresh: true),
+              child: const Text('Reintentar', style: TextStyle(color: AppTheme.sacredRed)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_entries.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.book_outlined, size: 64, color: AppTheme.sacredGold.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(
+              'Sin reflexiones para ${widget.gospelName}',
+              style: GoogleFonts.inter(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppTheme.sacredRed,
+      onRefresh: () => _loadReflections(forceRefresh: true),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        itemCount: _entries.length,
+        itemBuilder: (context, index) => _buildEntryTile(_entries[index]),
+      ),
+    );
+  }
+
+  Widget _buildEntryTile(PrayerEntry entry) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Timeline column
+          Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 24),
+                child: Icon(Icons.auto_stories, size: 20, color: AppTheme.sacredGold),
+              ),
+              Expanded(
+                child: Container(
+                  width: 2,
+                  color: AppTheme.sacredGold.withOpacity(0.3),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+
+          // Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 32.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Reference + date
+                  GestureDetector(
+                    onTap: () => _showBibleText(entry.gospelQuote),
+                    child: Row(
+                      children: [
+                        Text(
+                          entry.gospelQuote,
+                          style: GoogleFonts.montserrat(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.sacredRed,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Icon(Icons.open_in_new, size: 14, color: AppTheme.sacredGold),
+                      ],
+                    ),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _filteredEntries.length + (_hasMoreData ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == _filteredEntries.length) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Center(
-                          child: _isLoadingMore
-                              ? const CircularProgressIndicator(color: AppTheme.sacredRed)
-                              : ElevatedButton.icon(
-                                  onPressed: _loadMoreData,
-                                  icon: const Icon(Icons.expand_more),
-                                  label: const Text('Cargar más'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.sacredRed,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ReadingScreen(
+                            date: entry.date,
+                            gospelReference: entry.gospelQuote,
+                          ),
                         ),
                       );
-                    }
-
-                    final entry = _filteredEntries[index];
-                    
-                    // Simple logic to show year header if it changes could be added here
-                    // For now, replicating the design style (timeline)
-                    
-                    return IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Timeline Line
-                          Column(
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.only(top: 24),
-                                child: Icon(Icons.auto_stories, size: 20, color: AppTheme.sacredGold),
-                              ),
-                              Expanded(
-                                child: Container(
-                                  width: 2,
-                                  color: AppTheme.sacredGold.withOpacity(0.3),
-                                ),
-                              ),
-                            ],
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _formatDate(entry.date),
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            decoration: TextDecoration.underline,
+                            decorationColor: AppTheme.sacredDark.withOpacity(0.3),
                           ),
-                        const SizedBox(width: 16),
-                        
-                        // Content
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 32.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Header: Reference + Icon + Date
-                                Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () => _showBibleText(entry.gospelQuote),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            entry.gospelQuote,
-                                            style: GoogleFonts.montserrat(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.sacredRed,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Icon(Icons.open_in_new, size: 14, color: AppTheme.sacredGold),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _formatDate(entry.date),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: AppTheme.sacredDark.withOpacity(0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                
-                                // Highlighted Text (if any)
-                                if (entry.highlightedText != null && entry.highlightedText!.isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.sacredGold.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border(left: BorderSide(color: AppTheme.sacredGold, width: 4)),
-                                    ),
-                                    child: Text(
-                                      '"${entry.highlightedText}"',
-                                      style: GoogleFonts.merriweather(
-                                        fontStyle: FontStyle.italic,
-                                        fontSize: 14,
-                                        color: AppTheme.sacredDark.withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ),
-                                
-                                // Reflection
-                                if (entry.reflection.trim().isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      entry.reflection,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 15,
-                                        height: 1.5,
-                                        color: AppTheme.sacredDark,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 10,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                         ),
                       ],
                     ),
-                  );
-                  },
-                ),
+                  ),
+                  const SizedBox(height: 12),
 
+                  // Highlighted text
+                  if (entry.highlightedText != null && entry.highlightedText!.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.sacredGold.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border(left: BorderSide(color: AppTheme.sacredGold, width: 4)),
+                      ),
+                      child: Text(
+                        '"${entry.highlightedText}"',
+                        style: GoogleFonts.merriweather(
+                          fontStyle: FontStyle.italic,
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+
+                  // Reflection
+                  if (entry.reflection.trim().isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        entry.reflection,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          height: 1.5,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.9),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

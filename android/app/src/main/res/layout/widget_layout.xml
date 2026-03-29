@@ -1,4 +1,4 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+ <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -16,17 +16,30 @@
         android:textStyle="bold"
         android:letterSpacing="0.1"/>
 
-    <TextView
-        android:id="@+id/widget_highlight"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="8dp"
-        android:text="Cargando lectura..."
-        android:textColor="#333333"
-        android:textSize="14sp"
-        android:ellipsize="end"
-        android:maxLines="4"/>
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/widget_highlight"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Cargando lectura..."
+            android:textColor="#333333"
+            android:textSize="14sp"
+            android:ellipsize="end"
+            android:maxLines="8"
+            android:lineSpacingExtra="2dp"
+            android:paddingBottom="16dp"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/widget_gradient_overlay" />
+    </FrameLayout>
 
 
     <LinearLayout

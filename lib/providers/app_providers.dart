@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/gospel_data.dart';
 import '../models/prayer_entry.dart';
 
@@ -66,5 +67,36 @@ class PrayerEntryProvider extends ChangeNotifier {
     _currentEntry = null;
 
     notifyListeners();
+  }
+}
+
+/// Provider que mantiene el tamaño de fuente para el contenido de las lecturas
+class ReadingFontSizeProvider extends ChangeNotifier {
+  static const String _prefKey = 'readingFontSize';
+  static const double defaultSize = 16.0;
+  static const double minSize = 12.0;
+  static const double maxSize = 22.0;
+
+  double _fontSize = defaultSize;
+  double get fontSize => _fontSize;
+
+  ReadingFontSizeProvider() {
+    _loadFromPrefs();
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getDouble(_prefKey);
+    if (saved != null) {
+      _fontSize = saved.clamp(minSize, maxSize);
+      notifyListeners();
+    }
+  }
+
+  Future<void> setFontSize(double size) async {
+    _fontSize = size.clamp(minSize, maxSize);
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_prefKey, _fontSize);
   }
 }

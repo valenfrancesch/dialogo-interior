@@ -56,11 +56,12 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => custom_auth.AuthProvider()),
         ChangeNotifierProvider(create: (_) => GospelProvider()),
         ChangeNotifierProvider(create: (_) => PrayerEntryProvider()),
+        ChangeNotifierProvider(create: (_) => ReadingFontSizeProvider()),
       ],
       child: MaterialApp(
         title: 'Diálogo interior',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme(),
+        theme: AppTheme.lightTheme(),
         home: StreamBuilder<User?>(
           stream: FirebaseAuth.instance.authStateChanges(),
           builder: (context, snapshot) {

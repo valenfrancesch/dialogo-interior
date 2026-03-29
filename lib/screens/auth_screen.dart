@@ -273,11 +273,12 @@ class _AuthScreenState extends State<AuthScreen> {
         title: Text(_isLoginMode ? 'Iniciar Sesión' : 'Registrarse'),
         centerTitle: true,
       ),
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+      body: SafeArea(
+        child: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 48),
@@ -564,7 +565,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           );
         },
-      ),
+      ),),
     );
   }
 }
