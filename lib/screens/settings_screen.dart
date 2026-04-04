@@ -46,14 +46,14 @@ class SettingsScreen extends StatelessWidget {
                       width: 32,
                     ),
                     const SizedBox(width: 12),
-                      Text(
-                        'Diálogo interior',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.sacredRed,
-                        ),
+                    Text(
+                      'Diálogo interior',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.sacredRed,
                       ),
+                    ),
                   ],
                 ),
               ),

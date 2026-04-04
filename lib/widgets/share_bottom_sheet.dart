@@ -132,8 +132,25 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
     buffer.writeln('───────────────');
     buffer.writeln('Compartido desde Diálogo Interior');
 
-    await Share.share(buffer.toString());
-    if (mounted) Navigator.pop(context);
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      final sharePositionOrigin = box != null
+          ? Rect.fromLTWH(0, 0, box.size.width, box.size.height / 2)
+          : null;
+      
+      await Share.share(
+        buffer.toString(),
+        sharePositionOrigin: sharePositionOrigin,
+      );
+      
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al compartir: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _generateAndSavePDF() async {
