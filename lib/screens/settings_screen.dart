@@ -226,14 +226,14 @@ class SettingsScreen extends StatelessWidget {
                 );
               },
             ),
-            _buildSettingsTile(
+           /*  _buildSettingsTile(
               context: context,
               icon: Icons.favorite_border,
               title: 'Donar',
               onTap: () {
                 _showDonationDialog(context);
               },
-            ),
+            ), */
             _buildSettingsTile(
               context: context,
               icon: Icons.info_outline,
