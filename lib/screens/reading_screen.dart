@@ -63,6 +63,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppTheme.primaryDarkBg, // Now sacredCream
       body: FutureBuilder<GospelData>(
         future: _gospelFuture,
