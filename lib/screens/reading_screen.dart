@@ -228,6 +228,7 @@ class _ReadingContentState extends State<_ReadingContent>
   late PageController _pageController;
   late final Upgrader _upgrader;
   bool _isImmersiveMode = false;
+  final Map<int, GlobalKey> _purposeKeys = {};
 
   bool get _isGuest => !Provider.of<custom_auth.AuthProvider>(
     context,
@@ -535,9 +536,29 @@ class _ReadingContentState extends State<_ReadingContent>
         _lastPurposeText = purposeText;
         _saveReflection();
       }
+    } else {
+      // When gaining focus, scroll to make the purpose field visible
+      _scrollToPurposeField();
     }
     // Rebuild to show/hide floating check button
     setState(() {});
+  }
+
+  void _scrollToPurposeField() {
+    // Delay to allow keyboard to start animating
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      
+      final key = _purposeKeys[_selectedIndex];
+      if (key != null && key.currentContext != null) {
+        Scrollable.ensureVisible(
+          key.currentContext!,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
+    });
   }
 
   void _handleAutocapitalizationReflection() {
@@ -831,7 +852,7 @@ class _ReadingContentState extends State<_ReadingContent>
     ); // Trigger rebuild on font size changes
     return SafeArea(
       top: true,
-      bottom: false,
+      bottom: true,
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Column(
@@ -926,7 +947,7 @@ class _ReadingContentState extends State<_ReadingContent>
                   },
                   itemBuilder: (context, index) {
                     return SingleChildScrollView(
-                      primary: true,
+                      key: PageStorageKey<String>('tab_$index'),
                       physics: const ClampingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -977,7 +998,7 @@ class _ReadingContentState extends State<_ReadingContent>
     return Column(
       key: ValueKey(index),
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [readingContent, _buildReflectionInputSection()],
+      children: [readingContent, _buildReflectionInputSection(index)],
     );
   }
 
@@ -1481,6 +1502,16 @@ class _ReadingContentState extends State<_ReadingContent>
                   color: AppTheme.sacredDark,
                 ),
               ), // Fixed color
+              const SizedBox(height: 8),
+              Text(
+                '— ${widget.gospel.commentAuthor}',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accentMint,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
               const SizedBox(height: 16),
               SelectableTextContent(
                 text: widget.gospel.commentBody,
@@ -1501,32 +1532,16 @@ class _ReadingContentState extends State<_ReadingContent>
                   scheduleReminder: true,
                 ),
               ),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '— ${widget.gospel.commentAuthor}',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.accentMint,
-                      fontStyle: FontStyle.italic,
-                    ),
+              if (widget.gospel.commentSource.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  widget.gospel.commentSource,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppTheme.sacredDark.withOpacity(0.5),
                   ),
-                  if (widget.gospel.commentSource.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        widget.gospel.commentSource,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: AppTheme.sacredDark.withOpacity(0.5),
-                        ),
-                      ),
-                    ), // Fixed color
-                ],
-              ),
+                ), // Fixed color
+              ],
             ],
           ),
         ),
@@ -1534,7 +1549,10 @@ class _ReadingContentState extends State<_ReadingContent>
     );
   }
 
-  Widget _buildReflectionInputSection() {
+  Widget _buildReflectionInputSection(int tabIndex) {
+    if (!_purposeKeys.containsKey(tabIndex)) {
+      _purposeKeys[tabIndex] = GlobalKey();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1672,6 +1690,7 @@ class _ReadingContentState extends State<_ReadingContent>
         ),
         const SizedBox(height: 12),
         Stack(
+          key: _purposeKeys[tabIndex],
           alignment: Alignment.centerRight,
           children: [
             TextField(
