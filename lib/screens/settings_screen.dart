@@ -250,7 +250,7 @@ class SettingsScreen extends StatelessWidget {
               icon: Icons.support_agent,
               title: 'Soporte',
               onTap: () {
-                _showSupportDialog(context);
+                _launchEmail('dialogo.interior.app@gmail.com');
               },
             ),
             Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
@@ -349,42 +349,6 @@ class SettingsScreen extends StatelessWidget {
       await authProvider.logout();
       // El StreamBuilder en main.dart se encargará de reconstruir MainNavigation con estado de invitado
     }
-  }
-
-  void _showSupportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        title: Text('Soporte', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('¿Necesitas ayuda o tienes alguna sugerencia?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-            const SizedBox(height: 16),
-            Text('Escríbenos a:', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
-            GestureDetector(
-              onTap: () => _launchEmail('dialogo.interior.app@gmail.com'),
-              child: Text(
-                'dialogo.interior.app@gmail.com',
-                style: TextStyle(
-                  color: AppTheme.accentMint,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar', style: TextStyle(color: AppTheme.sacredDark)),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _launchEmail(String email) async {
