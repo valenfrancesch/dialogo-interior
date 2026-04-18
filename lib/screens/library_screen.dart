@@ -8,19 +8,17 @@ import '../theme/app_theme.dart';
 import '../widgets/statistics_card.dart';
 import '../widgets/diary_entry_card.dart';
 import '../widgets/calendar_day.dart';
-import '../repositories/gospel_repository.dart';
 import '../repositories/prayer_repository.dart';
 import '../services/library_statistics_service.dart';
 import '../services/cache_manager.dart';
 import '../models/prayer_entry.dart';
 import 'reading_screen.dart';
 import '../widgets/gospel_button.dart';
-import '../services/bible_service.dart';
-import '../models/gospel_data.dart';
 import 'gospel_reflections_screen.dart';
 
 import 'auth_screen.dart';
 import '../widgets/global_error_widget.dart';
+import '../utils/app_load_failure.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -41,6 +39,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   List<int> _daysWithEntries = [];
   bool _isLoading = true;
   bool _hasError = false; // Add error state
+  AppLoadFailure? _loadFailure;
   
   // Pagination state
   DocumentSnapshot<Map<String, dynamic>>? _lastDocument;
@@ -109,6 +108,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _hasMoreData = cachedReflections.length == 10;
         _isLoading = false;
         _hasError = false;
+        _loadFailure = null;
       });
       
       if (cachedReflections.isNotEmpty) {
@@ -121,6 +121,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     setState(() {
       _isLoading = true;
       _hasError = false;
+      _loadFailure = null;
     });
 
     try {
@@ -147,6 +148,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           _hasMoreData = entries.length == 10;
           _daysWithEntries = days;
           _isLoading = false;
+          _loadFailure = null;
         });
         
         // Fetch the last document snapshot for pagination
@@ -159,9 +161,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
         setState(() {
           _isLoading = false;
           _hasError = true;
+          _loadFailure = AppLoadFailure.from(e);
         });
         debugPrint('Error loading initial data: $e');
       }
+    }
+  }
+
+  bool _hasAnyLibraryCache() {
+    return _cache.get<List<PrayerEntry>>(CacheKeys.libraryReflections) != null ||
+        _cache.get<List<int>>(CacheKeys.libraryCalendar) != null;
+  }
+
+  void _applyStaleLibraryCache() {
+    final cachedReflections =
+        _cache.get<List<PrayerEntry>>(CacheKeys.libraryReflections) ?? <PrayerEntry>[];
+    final cachedDays = _cache.get<List<int>>(CacheKeys.libraryCalendar) ?? <int>[];
+    if (cachedReflections.isEmpty && cachedDays.isEmpty) return;
+
+    setState(() {
+      _allEntries = List<PrayerEntry>.from(cachedReflections);
+      _daysWithEntries = List<int>.from(cachedDays);
+      _hasError = false;
+      _loadFailure = null;
+      _isLoading = false;
+      _hasMoreData = cachedReflections.length == 10;
+    });
+    if (_allEntries.isNotEmpty) {
+      _fetchLastDocumentSnapshot();
     }
   }
 
@@ -217,8 +244,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingMore = false);
+        final msg = AppLoadFailure.from(e, offerCachedHint: false)
+            .message
+            .split('\n')
+            .first;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al cargar más reflexiones')),
+          SnackBar(content: Text(msg)),
         );
       }
     }
@@ -266,11 +297,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: _hasError && _allEntries.isEmpty 
-          ? GlobalErrorWidget(
-              onRetry: _loadInitialData,
-              message: 'No pudimos cargar tu biblioteca. Por favor, verifica tu conexión.',
-            )
+        child: _hasError && _allEntries.isEmpty
+            ? SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 24),
+                child: Column(
+                  children: [
+                    GlobalErrorWidget(
+                      title: _loadFailure?.title ?? 'No pudimos cargar tu biblioteca',
+                      message: _loadFailure?.message ??
+                          'Verificá tu conexión e intentá de nuevo.',
+                      onRetry: _loadInitialData,
+                    ),
+                    if (_loadFailure?.showUseCachedHint == true &&
+                        _hasAnyLibraryCache()) ...[
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _applyStaleLibraryCache,
+                        icon: const Icon(Icons.offline_pin, color: AppTheme.sacredRed),
+                        label: Text(
+                          'Continuar igualmente',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.sacredRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -489,8 +544,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
         }
 
         if (snapshot.hasError) {
+          final f = AppLoadFailure.from(snapshot.error!);
           return GlobalErrorWidget(
-            message: 'Error de estadísticas',
+            title: f.title,
+            message: f.message,
             onRetry: _refreshStats,
             isCompact: true,
           );
@@ -693,7 +750,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           const Center(child: CircularProgressIndicator(color: AppTheme.accentMint))
         else if (_hasError)
           GlobalErrorWidget(
-            message: 'No pudimos cargar tu diario',
+            title: _loadFailure?.title ?? 'Error de carga',
+            message: _loadFailure?.message ?? 'No pudimos cargar tu diario.',
             onRetry: _loadInitialData,
             isCompact: true,
           )

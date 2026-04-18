@@ -60,20 +60,20 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyC8lBeYwtA43aLc-_vyD3znP-SwGiDulOg',
-    appId: '1:935142790598:ios:b0fa3409fc289df90d4ec7',
+    appId: '1:935142790598:ios:3cf75391685fd83a0d4ec7',
     messagingSenderId: '935142790598',
     projectId: 'diario-espiritual-642d0',
     storageBucket: 'diario-espiritual-642d0.firebasestorage.app',
-    iosBundleId: 'com.example.flutterApplication1',
+    iosBundleId: 'com.francesch.dialogointerior',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyC8lBeYwtA43aLc-_vyD3znP-SwGiDulOg',
-    appId: '1:935142790598:ios:b0fa3409fc289df90d4ec7',
+    appId: '1:935142790598:ios:3cf75391685fd83a0d4ec7',
     messagingSenderId: '935142790598',
     projectId: 'diario-espiritual-642d0',
     storageBucket: 'diario-espiritual-642d0.firebasestorage.app',
-    iosBundleId: 'com.example.flutterApplication1',
+    iosBundleId: 'com.francesch.dialogointerior',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

@@ -32,7 +32,7 @@ class GlobalErrorWidget extends StatelessWidget {
             const Icon(Icons.cloud_off, color: AppTheme.sacredRed, size: 32),
             const SizedBox(height: 8),
             Text(
-              'Error de carga',
+              title,
               style: GoogleFonts.montserrat(
                 color: AppTheme.sacredDark,
                 fontWeight: FontWeight.w600,

@@ -4,12 +4,24 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import '../models/gospel_data.dart';
 import '../services/bible_service.dart';
+import '../utils/app_load_failure.dart';
 
 class GospelRepository {
   static const String _baseUrl = 'https://feed.evangelizo.org/v2/reader.php';
 
   static GospelData? _cachedGospel;
   static DateTime? _cachedDate;
+
+  /// Lectura en memoria para el mismo día calendario (p. ej. tras fallo de red en la sesión).
+  static GospelData? sessionCachedGospelFor(DateTime date) {
+    if (_cachedGospel == null || _cachedDate == null) return null;
+    if (_cachedDate!.year != date.year ||
+        _cachedDate!.month != date.month ||
+        _cachedDate!.day != date.day) {
+      return null;
+    }
+    return _cachedGospel;
+  }
 
   /// Obtiene datos completos del evangelio del día y lecturas mediante peticiones paralelas
   static Future<GospelData> fetchGospelData(DateTime date, {String? reference}) async {
@@ -27,22 +39,33 @@ class GospelRepository {
           final uid = FirebaseAuth.instance.currentUser?.uid;
           if (uid != null) {
             final docId = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-            final doc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .collection('entries')
-                .doc(docId)
-                .get();
-            
-            if (doc.exists) {
-              final finalData = doc.data();
-              finalReference = finalData?['gospelQuote'] as String?;
+            try {
+              final doc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .collection('entries')
+                  .doc(docId)
+                  .get();
+
+              if (doc.exists) {
+                final finalData = doc.data();
+                finalReference = finalData?['gospelQuote'] as String?;
+              }
+            } on FirebaseException catch (e) {
+              throw AppLoadFailure.from(e);
+            } catch (e) {
+              throw AppLoadFailure.from(e);
             }
           }
         }
 
         if (finalReference == null) {
-          throw Exception("No hay una reflexión guardada para esta fecha lejana.");
+          throw AppLoadFailure(
+            title: 'Sin datos en el historial',
+            message:
+                'No hay una reflexión guardada para esta fecha lejana, o no hay conexión para recuperarla desde la nube.',
+            showUseCachedHint: false,
+          );
         }
 
         final bibleService = BibleService();
@@ -116,9 +139,26 @@ class GospelRepository {
         secondReadingLongTitle = null;
       }
 
+      // Sin red: todas las lecturas clave vinieron vacías / "No disponible"
+      if (results[1] == 'No disponible' &&
+          results[3] == 'No disponible' &&
+          results[7] == 'No disponible') {
+        throw AppLoadFailure(
+          title: 'Sin conexión a internet',
+          message:
+              'No pudimos descargar las lecturas del día. Comprobá tu conexión e intentá de nuevo.',
+          showUseCachedHint: true,
+        );
+      }
+
       // Detect if we actually got a valid response (not HTML junk)
       if (results[1].contains('<!DOCTYPE html>') || results[7].contains('<!DOCTYPE html>')) {
-        throw Exception('El servidor devolvió un error (HTML). Intente más tarde.');
+        throw AppLoadFailure(
+          title: 'Servicio temporalmente no disponible',
+          message:
+              'El servidor de lecturas devolvió un error. Intentá de nuevo en unos minutos.',
+          showUseCachedHint: true,
+        );
       }
 
       final gospelData = GospelData.fromApiResponses(
@@ -147,12 +187,12 @@ class GospelRepository {
 
       return gospelData;
     } catch (e) {
-      throw Exception('Hubo un problema al cargar las lecturas. Por favor, reintente.');
+      final cached = sessionCachedGospelFor(date);
+      if (cached != null) return cached;
+      if (e is AppLoadFailure) rethrow;
+      throw AppLoadFailure.from(e);
     }
   }
-
-  // Import related files inside GospelRepository (need BibleService)
-  // I will add the import to the top in the next step or here if possible.
 
   /// Generic fetcher for Reading Title/Reference (reading_st)
   /// contentCode: FR, PS, SR, GSP
@@ -258,7 +298,8 @@ class GospelRepository {
       }
       return 'Reflexión de la Iglesia';
     } catch (e) {
-      throw Exception('Error fetching comment_t: $e');
+      if (e is AppLoadFailure) rethrow;
+      throw AppLoadFailure.from(e);
     }
   }
 
@@ -279,7 +320,8 @@ class GospelRepository {
       }
       return 'Reflexión disponible en evangelizo.org';
     } catch (e) {
-      throw Exception('Error fetching comment: $e');
+      if (e is AppLoadFailure) rethrow;
+      throw AppLoadFailure.from(e);
     }
   }
 
@@ -300,7 +342,8 @@ class GospelRepository {
       }
       return '';
     } catch (e) {
-      throw Exception('Error fetching comment_a: $e');
+      if (e is AppLoadFailure) rethrow;
+      throw AppLoadFailure.from(e);
     }
   }
 
@@ -321,7 +364,8 @@ class GospelRepository {
       }
       return '';
     } catch (e) {
-      throw Exception('Error fetching comment_s: $e');
+      if (e is AppLoadFailure) rethrow;
+      throw AppLoadFailure.from(e);
     }
   }
 

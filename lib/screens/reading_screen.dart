@@ -27,6 +27,7 @@ import 'package:upgrader/upgrader.dart';
 import '../widgets/kindle_clock.dart';
 import '../providers/app_providers.dart';
 import '../widgets/share_bottom_sheet.dart';
+import '../utils/app_load_failure.dart';
 
 class ReadingScreen extends StatefulWidget {
   final GospelData? gospel;
@@ -71,14 +72,14 @@ class _ReadingScreenState extends State<ReadingScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return _buildLoadingState();
           } else if (snapshot.hasError) {
-            return _buildErrorState(snapshot.error.toString());
+            return _buildErrorState(snapshot.error!);
           } else if (snapshot.hasData) {
             return _ReadingContent(
               gospel: snapshot.data!,
               showBackButton: widget.gospel != null || widget.date != null,
             );
           }
-          return _buildErrorState('Estado desconocido');
+          return _buildErrorState(Exception('Estado desconocido'));
         },
       ),
     );
@@ -105,7 +106,14 @@ class _ReadingScreenState extends State<ReadingScreen> {
     );
   }
 
-  Widget _buildErrorState(String error) {
+  Widget _buildErrorState(Object error) {
+    final failure =
+        error is AppLoadFailure ? error : AppLoadFailure.from(error);
+    final targetDate = widget.date ?? DateTime.now();
+    final cached = GospelRepository.sessionCachedGospelFor(targetDate);
+    final canUseSessionCache =
+        failure.showUseCachedHint && cached != null;
+
     return Scaffold(
       backgroundColor: AppTheme.primaryDarkBg,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
@@ -115,14 +123,17 @@ class _ReadingScreenState extends State<ReadingScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
+              Icon(
+                failure.title.toLowerCase().contains('conex')
+                    ? Icons.cloud_off
+                    : Icons.error_outline,
                 size: 64,
                 color: AppTheme.accentMint,
               ),
               const SizedBox(height: 16),
               Text(
-                'Error al cargar el evangelio',
+                failure.title,
+                textAlign: TextAlign.center,
                 style: GoogleFonts.montserrat(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -131,7 +142,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                error,
+                failure.message,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14,
@@ -157,6 +168,24 @@ class _ReadingScreenState extends State<ReadingScreen> {
                   foregroundColor: Colors.white,
                 ),
               ),
+              if (canUseSessionCache) ...[
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _gospelFuture = Future<GospelData>.value(cached);
+                    });
+                  },
+                  icon: const Icon(Icons.history, color: AppTheme.sacredRed),
+                  label: Text(
+                    'Continuar igualmente',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.sacredRed,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
