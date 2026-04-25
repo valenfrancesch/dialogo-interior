@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 class ReflectionCard extends StatelessWidget {
   final String title;
@@ -18,14 +17,16 @@ class ReflectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: backgroundColor ?? AppTheme.cardDark,
+        color: backgroundColor ?? scheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -40,7 +41,7 @@ class ReflectionCard extends StatelessWidget {
             style: GoogleFonts.montserrat(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppTheme.accentMint,
+              color: scheme.primary,
             ),
           ),
           const SizedBox(height: 12),
@@ -49,7 +50,7 @@ class ReflectionCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: Colors.white70,
+              color: scheme.onSurface.withOpacity(0.78),
               fontStyle: FontStyle.italic,
               height: 1.6,
             ),

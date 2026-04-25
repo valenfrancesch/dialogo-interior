@@ -5,23 +5,21 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'main_navigation.dart';
-import 'screens/auth_screen.dart';
 import 'providers/app_providers.dart';
 import 'providers/auth_provider.dart' as custom_auth;
 import 'services/notification_service.dart';
 
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'services/reminder_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent, // transparent status bar
-      statusBarIconBrightness: Brightness.dark, // text color for the status bar
-    ),
-  );
-  
+
+  final prefs = await SharedPreferences.getInstance();
+  await ReminderPrefs.ensureMigrated(prefs);
+
   // Initialize Firebase
   try {
     await Firebase.initializeApp(
@@ -31,14 +29,11 @@ void main() async {
     debugPrint('Firebase initialization failed: $e');
   }
 
-  // Initialize Notifications and Schedule Gospel Reminder
-  // We don't want a notification failure to crash the entire app
+  // Initialize Notifications; daily time comes from preferences (after onboarding).
   try {
     final notificationService = NotificationService();
     await notificationService.init();
-    
-    // Schedule daily Gospel reminder (9:00 AM)
-    await notificationService.scheduleGospelReminder(9, 0);
+    await notificationService.syncScheduleWithPreferences();
   } catch (e) {
     debugPrint('Notification initialization failed: $e');
   }
@@ -57,11 +52,29 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GospelProvider()),
         ChangeNotifierProvider(create: (_) => PrayerEntryProvider()),
         ChangeNotifierProvider(create: (_) => ReadingFontSizeProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeModeProvider()),
       ],
-      child: MaterialApp(
+      child: Consumer<ThemeModeProvider>(
+        builder: (context, themeMode, _) {
+          return MaterialApp(
         title: 'Diálogo interior',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme(),
+        darkTheme: AppTheme.darkTheme(),
+        themeMode: themeMode.themeMode,
+        builder: (context, child) {
+          final brightness = Theme.of(context).brightness;
+          final style = SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: brightness == Brightness.dark
+                ? Brightness.light
+                : Brightness.dark,
+          );
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: style,
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: StreamBuilder<User?>(
           stream: FirebaseAuth.instance.authStateChanges(),
           builder: (context, snapshot) {
@@ -78,6 +91,8 @@ class MyApp extends StatelessWidget {
             return MainNavigation(key: ValueKey(snapshot.data?.uid));
           },
         ),
+      );
+        },
       ),
     );
   }

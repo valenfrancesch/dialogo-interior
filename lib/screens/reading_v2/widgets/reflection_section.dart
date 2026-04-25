@@ -23,6 +23,7 @@ class ReflectionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isGuest = controller.isGuest;
+    final scheme = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,7 +34,7 @@ class ReflectionSection extends StatelessWidget {
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppTheme.accentMint,
+            color: scheme.primary,
           ),
         ),
         const SizedBox(height: 8),
@@ -48,7 +49,7 @@ class ReflectionSection extends StatelessWidget {
             'Mantén presionado sobre el texto para destacar.',
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: AppTheme.sacredDark.withOpacity(0.4),
+              color: scheme.onSurface.withOpacity(0.4),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -62,7 +63,7 @@ class ReflectionSection extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.accentMint,
+                color: scheme.primary,
               ),
             ),
             _SaveStatusIndicator(status: controller.saveStatus),
@@ -82,14 +83,15 @@ class ReflectionSection extends StatelessWidget {
               minLines: 3,
               maxLines: null,
               keyboardType: TextInputType.multiline,
+              style: GoogleFonts.inter(fontSize: 14, color: scheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Escribe una reflexión personal...',
                 hintStyle: GoogleFonts.inter(
                   fontSize: 14,
-                  color: AppTheme.sacredDark.withOpacity(0.3),
+                  color: scheme.onSurface.withOpacity(0.35),
                 ),
                 filled: true,
-                fillColor: AppTheme.cardDark,
+                fillColor: scheme.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -107,7 +109,7 @@ class ReflectionSection extends StatelessWidget {
                   },
                   icon: const Icon(Icons.check, color: Colors.white, size: 20),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.sacredRed,
+                    backgroundColor: scheme.primary,
                     padding: const EdgeInsets.all(8),
                     minimumSize: const Size(36, 36),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -122,7 +124,7 @@ class ReflectionSection extends StatelessWidget {
           style: GoogleFonts.montserrat(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppTheme.accentMint,
+            color: scheme.primary,
           ),
         ),
         const SizedBox(height: 12),
@@ -139,16 +141,21 @@ class ReflectionSection extends StatelessWidget {
               minLines: 1,
               maxLines: null,
               keyboardType: TextInputType.multiline,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.stars, color: AppTheme.accentMint),
+                prefixIcon: Icon(Icons.stars, color: scheme.primary),
                 hintText: 'Escribe un propósito concreto...',
                 hintStyle: GoogleFonts.inter(
                   fontSize: 14,
-                  color: AppTheme.sacredDark.withOpacity(0.3),
+                  color: scheme.onSurface.withOpacity(0.35),
                   fontStyle: FontStyle.italic,
                 ),
                 filled: true,
-                fillColor: AppTheme.cardDark,
+                fillColor: scheme.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -166,7 +173,7 @@ class ReflectionSection extends StatelessWidget {
                   },
                   icon: const Icon(Icons.check, color: Colors.white, size: 20),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.sacredRed,
+                    backgroundColor: scheme.primary,
                     padding: const EdgeInsets.all(8),
                     minimumSize: const Size(36, 36),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,

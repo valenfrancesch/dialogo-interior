@@ -16,6 +16,7 @@ class SavedHighlightsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (highlights.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
 
     // Group highlights by source
     final groupedHighlights = <String, List<Highlight>>{};
@@ -49,13 +50,15 @@ class SavedHighlightsWidget extends StatelessWidget {
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.accentMint,
+                      color: scheme.primary,
                       letterSpacing: 0.5,
                     ),
                   ),
                 ),
               // List of highlights for this source
-              ...sourceHighlights.map((highlight) => _buildHighlightItem(highlight)).toList(),
+              ...sourceHighlights
+                  .map((highlight) => _buildHighlightItem(context, highlight))
+                  .toList(),
             ],
           ),
         );
@@ -63,7 +66,8 @@ class SavedHighlightsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildHighlightItem(Highlight highlight) {
+  Widget _buildHighlightItem(BuildContext context, Highlight highlight) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
       child: Stack(
@@ -72,12 +76,12 @@ class SavedHighlightsWidget extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16.0, 16.0, 48.0, 16.0),
             decoration: BoxDecoration(
-              color: AppTheme.sacredGold.withOpacity(0.08),
+              color: AppTheme.sacredGold.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
-              border: const Border(
+              border: Border(
                 left: BorderSide(
-                  color: AppTheme.sacredGold, 
-                  width: 3,
+                  color: AppTheme.sacredGold,
+                  width: 4,
                 ),
               ),
             ),
@@ -86,7 +90,7 @@ class SavedHighlightsWidget extends StatelessWidget {
               style: GoogleFonts.merriweather(
                 fontStyle: FontStyle.italic,
                 fontSize: 14,
-                color: AppTheme.sacredDark.withOpacity(0.85),
+                color: scheme.onSurface.withOpacity(0.8),
                 height: 1.6,
               ),
             ),
@@ -97,7 +101,7 @@ class SavedHighlightsWidget extends StatelessWidget {
               right: 4,
               child: IconButton(
                 icon: const Icon(Icons.close, size: 20),
-                color: AppTheme.sacredDark.withOpacity(0.4),
+                color: scheme.onSurface.withOpacity(0.55),
                 onPressed: () => onDelete!(highlight),
                 tooltip: 'Eliminar luz',
               ),

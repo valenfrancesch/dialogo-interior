@@ -1,38 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Definimos el estilo de los títulos para mantener consistencia
+    final scheme = Theme.of(context).colorScheme;
     final headerStyle = GoogleFonts.inter(
       fontSize: 18,
       fontWeight: FontWeight.bold,
-      color: AppTheme.accentMint, // Sacred Red
+      color: scheme.primary,
     );
 
     final bodyStyle = GoogleFonts.inter(
       fontSize: 14,
-      color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
+      color: scheme.onSurface.withOpacity(0.88),
       height: 1.6,
     );
 
     return Scaffold(
-      backgroundColor: AppTheme.sacredCream, // Updated background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Privacidad y Términos', 
+          'Privacidad y Términos',
           style: GoogleFonts.inter(
-            color: AppTheme.sacredDark, 
-            fontWeight: FontWeight.bold
-          )
+            color: scheme.onSurface,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppTheme.accentMint),
+        iconTheme: IconThemeData(color: scheme.primary),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -43,7 +42,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               Center(
                 child: Column(
                   children: [
-                     Icon(Icons.shield_outlined, size: 60, color: AppTheme.accentMint),
+                     Icon(Icons.shield_outlined, size: 60, color: scheme.primary),
                     const SizedBox(height: 10),
                     Text(
                       "Política de Privacidad",
@@ -122,7 +121,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
               Center(
                 child: Text(
                     "Última actualización: Febrero 2026",
-                    style: bodyStyle.copyWith(fontSize: 12, color: AppTheme.sacredDark.withOpacity(0.5)),
+                    style: bodyStyle.copyWith(
+                      fontSize: 12,
+                      color: scheme.onSurface.withOpacity(0.5),
+                    ),
                 ),
               ),
               const SizedBox(height: 20),

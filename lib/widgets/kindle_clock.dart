@@ -49,12 +49,15 @@ class _KindleClockState extends State<KindleClock> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Text(
       _currentTime,
       style: GoogleFonts.inter(
         fontSize: 12,
         fontWeight: FontWeight.w500,
-        color: AppTheme.sacredDark.withOpacity(0.35),
+        color: isDarkMode
+            ? Colors.white.withOpacity(0.75)
+            : AppTheme.sacredDark.withOpacity(0.35),
         letterSpacing: 0.5,
       ),
     );

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 class GospelButton extends StatelessWidget {
   final String title;
@@ -20,16 +19,18 @@ class GospelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white, // White background
+          color: isDark ? scheme.surfaceContainerHigh : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.sacredGold.withOpacity(0.1),
+              color: Colors.black.withOpacity(isDark ? 0.28 : 0.08),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -44,7 +45,7 @@ class GospelButton extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.sacredRed,
+                color: isDark ? scheme.onSurface : color,
               ),
             ),
             

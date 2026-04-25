@@ -9,7 +9,7 @@ import '../../services/cache_manager.dart';
 import '../../widgets/share_bottom_sheet.dart';
 import 'mappers/reading_tab_mapper.dart';
 import 'models/reading_tab_descriptor.dart';
-import 'services/home_widget_sync_service.dart';
+import '../../services/home_widget_sync_service.dart';
 
 class ReadingSessionController extends ChangeNotifier {
   ReadingSessionController({
@@ -63,6 +63,11 @@ class ReadingSessionController extends ChangeNotifier {
     }
     reflectionFocusNode.addListener(_onFocusChanged);
     purposeFocusNode.addListener(_onFocusChanged);
+    await _widgetSyncService.sync(
+      gospel: gospel,
+      highlights: highlights,
+      purposeText: purposeController.text.trim(),
+    );
   }
 
   void _onFocusChanged() {
@@ -197,7 +202,11 @@ class ReadingSessionController extends ChangeNotifier {
       _lastHighlightsSignature = _highlightsSignature(highlights);
       saveStatus = 'saved';
       notifyListeners();
-      await _widgetSyncService.sync(highlights: highlights, purposeText: purposeText);
+      await _widgetSyncService.sync(
+        gospel: gospel,
+        highlights: highlights,
+        purposeText: purposeText,
+      );
     } catch (_) {
       saveStatus = 'error';
       notifyListeners();

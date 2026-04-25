@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 class CalendarDay extends StatelessWidget {
   final int day;
@@ -22,11 +21,12 @@ class CalendarDay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: isDisabled ? null : onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: isToday ? AppTheme.sacredGold : Colors.transparent,
+          color: isToday ? scheme.primary : Colors.transparent,
           shape: BoxShape.circle,
         ),
         child: Column(
@@ -37,7 +37,7 @@ class CalendarDay extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontSize: 14,
                 fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
-                color: _getTextColor(),
+                color: _getTextColor(context),
               ),
             ),
             const SizedBox(height: 2),
@@ -46,7 +46,7 @@ class CalendarDay extends StatelessWidget {
                 width: 4,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: isToday ? Colors.white : AppTheme.sacredRed,
+                  color: isToday ? scheme.onPrimary : scheme.primary,
                   shape: BoxShape.circle,
                 ),
               )
@@ -58,10 +58,11 @@ class CalendarDay extends StatelessWidget {
     );
   }
 
-  Color _getTextColor() {
-    if (!isCurrentMonth) return AppTheme.sacredDark.withOpacity(0.15);
-    if (isDisabled) return AppTheme.sacredDark.withOpacity(0.2);
-    if (isToday) return Colors.white;
-    return AppTheme.sacredDark;
+  Color _getTextColor(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (!isCurrentMonth) return scheme.onSurface.withOpacity(0.28);
+    if (isDisabled) return scheme.onSurface.withOpacity(0.4);
+    if (isToday) return scheme.onPrimary;
+    return scheme.onSurface;
   }
 }

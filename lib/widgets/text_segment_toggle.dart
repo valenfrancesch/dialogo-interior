@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 class TextSegmentToggle extends StatefulWidget {
   final List<String> segments;
@@ -96,6 +95,15 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final trackColor = isDark
+        ? scheme.surfaceContainerHighest
+        : const Color(0xFFEBE8E3);
+    final selectedBg = scheme.primary;
+    final selectedFg = scheme.onPrimary;
+    final unselectedFg = scheme.onSurface;
+
     return SingleChildScrollView(
       controller: _scrollController,
       scrollDirection: Axis.horizontal,
@@ -103,7 +111,7 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFEBE8E3),
+          color: trackColor,
           borderRadius: BorderRadius.circular(24),
         ),
         padding: const EdgeInsets.all(4),
@@ -127,9 +135,7 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(
-                  color: _selectedIndex == index
-                      ? AppTheme.accentMint
-                      : Colors.transparent,
+                  color: _selectedIndex == index ? selectedBg : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
@@ -138,9 +144,7 @@ class _TextSegmentToggleState extends State<TextSegmentToggle> {
                   style: GoogleFonts.montserrat(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: _selectedIndex == index
-                        ? Colors.white
-                        : Colors.black,
+                    color: _selectedIndex == index ? selectedFg : unselectedFg,
                   ),
                 ),
               ),

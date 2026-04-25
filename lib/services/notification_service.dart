@@ -1,45 +1,37 @@
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:flutter/foundation.dart';
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
+
+import 'reminder_preferences.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  static const int gospelNotificationId = 100;
+
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
     try {
-      // Initialize timezones
-      tz.initializeTimeZones();
-      
-      // Set local timezone - use a common default or detect from DateTime
-      try {
-        // Try to use the system's local timezone
-        // For most cases, using 'America/Argentina/Buenos_Aires' or detecting from DateTime.now()
-        final String timeZoneName = DateTime.now().timeZoneName;
-        try {
-          tz.setLocalLocation(tz.getLocation(timeZoneName));
-        } catch (e) {
-          // Fallback to a reasonable default for Argentina
-          tz.setLocalLocation(tz.getLocation('America/Argentina/Buenos_Aires'));
-        }
-      } catch (e) {
-        debugPrint('NotificationService: Could not initialize timezone: $e');
-        // Fallback to UTC
-        tz.setLocalLocation(tz.getLocation('UTC'));
-      }
+      tz_data.initializeTimeZones();
+      await _configureLocalTimeZone();
 
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@mipmap/launcher_icon');
 
-      const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+      const DarwinInitializationSettings iosSettings =
+          DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
       );
 
       const InitializationSettings initSettings = InitializationSettings(
@@ -49,20 +41,58 @@ class NotificationService {
 
       await _notifications.initialize(
         initSettings,
-        onDidReceiveNotificationResponse: (NotificationResponse response) {
-          // Handle notification tap
-        },
+        onDidReceiveNotificationResponse: (NotificationResponse response) {},
       );
 
-      // Request permissions for Android 13+
-      // Use kIsWeb to avoid dart:io Platform errors on web
       if (!kIsWeb && Platform.isAndroid) {
-        _notifications.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+        await _notifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
       }
     } catch (e) {
       debugPrint('NotificationService: Initialization failed: $e');
     }
+  }
+
+  Future<void> _configureLocalTimeZone() async {
+    try {
+      final localName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(localName));
+    } catch (e) {
+      debugPrint('NotificationService: timezone detection failed: $e');
+      try {
+        tz.setLocalLocation(tz.getLocation('America/Argentina/Buenos_Aires'));
+      } catch (_) {
+        tz.setLocalLocation(tz.getLocation('UTC'));
+      }
+    }
+  }
+
+  /// Request alert/badge/sound (iOS) or post-notifications (Android 13+).
+  Future<bool> requestPermissions() async {
+    if (kIsWeb) return false;
+    if (Platform.isIOS) {
+      final impl = _notifications.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      final result = await impl?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return result ?? false;
+    }
+    if (Platform.isAndroid) {
+      final impl = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final granted = await impl?.requestNotificationsPermission();
+      return granted ?? false;
+    }
+    return false;
+  }
+
+  Future<void> cancelGospelReminder() async {
+    await _notifications.cancel(gospelNotificationId);
   }
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
@@ -75,38 +105,90 @@ class NotificationService {
     return scheduledDate;
   }
 
-  /// Recordatorio diario del Evangelio
+  /// Daily gospel reminder at [hour]:[minute] local time.
   Future<void> scheduleGospelReminder(int hour, int minute) async {
-    await _notifications.zonedSchedule(
-      100, // ID único para el Evangelio
-      'Diálogo Interior',
-      'Es momento de leer el Evangelio y vivificar la Palabra.',
-      _nextInstanceOfTime(hour, minute),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'gospel_channel',
-          'Evangelio Diario',
-          channelDescription: 'Recordatorio diario para la lectura del Evangelio',
-          importance: Importance.max,
-          priority: Priority.high,
+    await cancelGospelReminder();
+    try {
+      await _notifications.zonedSchedule(
+        gospelNotificationId,
+        'Diálogo Interior',
+        'Es momento de leer el Evangelio y vivificar la Palabra.',
+        _nextInstanceOfTime(hour, minute),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'gospel_channel',
+            'Evangelio Diario',
+            channelDescription:
+                'Recordatorio diario para la lectura del Evangelio',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } catch (e) {
+      debugPrint(
+        'NotificationService: exact schedule failed ($e), retrying inexact',
+      );
+      await _notifications.zonedSchedule(
+        gospelNotificationId,
+        'Diálogo Interior',
+        'Es momento de leer el Evangelio y vivificar la Palabra.',
+        _nextInstanceOfTime(hour, minute),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'gospel_channel',
+            'Evangelio Diario',
+            channelDescription:
+                'Recordatorio diario para la lectura del Evangelio',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
+  }
+
+  /// Cancels and re-schedules from [SharedPreferences], or only cancels if disabled / onboarding incomplete.
+  Future<void> syncScheduleWithPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    await ReminderPrefs.ensureMigrated(prefs);
+    await cancelGospelReminder();
+    final onboardingDone =
+        prefs.getBool(ReminderPrefs.onboardingCompleted) ?? false;
+    if (!onboardingDone) return;
+    final enabled = prefs.getBool(ReminderPrefs.dailyReminderEnabled) ?? true;
+    if (!enabled) return;
+    final h = prefs.getInt(ReminderPrefs.hour) ?? 9;
+    final m = prefs.getInt(ReminderPrefs.minute) ?? 0;
+    await scheduleGospelReminder(h, m);
   }
 
   /// Recordatorio de Versículo Favorito
-  Future<void> scheduleFavoriteReminder(String verse, int hour, int minute) async {
+  Future<void> scheduleFavoriteReminder(
+    String verse,
+    int hour,
+    int minute,
+  ) async {
     await _notifications.zonedSchedule(
-      200, // ID único para el Favorito
+      200,
       'Tu luz de hoy',
       '"$verse"',
       _nextInstanceOfTime(hour, minute),

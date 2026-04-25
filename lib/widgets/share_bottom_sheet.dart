@@ -313,7 +313,8 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
     }
   }
 
-  Widget _buildCheckboxRow(String key, String title) {
+  Widget _buildCheckboxRow(BuildContext context, String key, String title) {
+    final scheme = Theme.of(context).colorScheme;
     return CheckboxListTile(
       value: _selectedState[key] ?? false,
       onChanged: (val) {
@@ -325,10 +326,10 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
       },
       title: Text(
         title,
-        style: GoogleFonts.inter(fontSize: 14, color: AppTheme.sacredDark),
+        style: GoogleFonts.inter(fontSize: 14, color: scheme.onSurface),
       ),
-      activeColor: AppTheme.accentMint,
-      checkColor: Colors.white,
+      activeColor: scheme.primary,
+      checkColor: scheme.onPrimary,
       contentPadding: EdgeInsets.zero,
       controlAffinity: ListTileControlAffinity.leading,
       visualDensity: VisualDensity.compact,
@@ -337,15 +338,16 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     bool hasNotes = widget.highlights.isNotEmpty ||
         (widget.reflection != null && widget.reflection!.trim().isNotEmpty) ||
         (widget.purpose != null && widget.purpose!.trim().isNotEmpty);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -356,7 +358,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
             style: GoogleFonts.montserrat(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: AppTheme.sacredRed,
+              color: scheme.primary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -365,7 +367,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
             'Selecciona qué contenido deseas incluir',
             style: GoogleFonts.inter(
               fontSize: 14,
-              color: AppTheme.sacredDark.withOpacity(0.6),
+              color: scheme.onSurface.withOpacity(0.72),
             ),
             textAlign: TextAlign.center,
           ),
@@ -377,11 +379,13 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               style: GoogleFonts.montserrat(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.accentMint,
+                color: scheme.primary,
               ),
             ),
             const SizedBox(height: 8),
-            ...widget.availableLectures.map((lecture) => _buildCheckboxRow(lecture.title, lecture.title)).toList(),
+            ...widget.availableLectures
+                .map((lecture) => _buildCheckboxRow(context, lecture.title, lecture.title))
+                .toList(),
             const SizedBox(height: 16),
           ],
           
@@ -391,16 +395,16 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               style: GoogleFonts.montserrat(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.accentMint,
+                color: scheme.primary,
               ),
             ),
             const SizedBox(height: 8),
             if (widget.highlights.isNotEmpty)
-              _buildCheckboxRow('Luces de hoy', 'Luces de hoy'),
+              _buildCheckboxRow(context, 'Luces de hoy', 'Luces de hoy'),
             if (widget.reflection != null && widget.reflection!.trim().isNotEmpty)
-              _buildCheckboxRow('Reflexión', 'Reflexión'),
+              _buildCheckboxRow(context, 'Reflexión', 'Reflexión'),
             if (widget.purpose != null && widget.purpose!.trim().isNotEmpty)
-              _buildCheckboxRow('Propósito', 'Propósito del día'),
+              _buildCheckboxRow(context, 'Propósito', 'Propósito del día'),
             const SizedBox(height: 28),
           ],
 
@@ -413,8 +417,8 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                   icon: const Icon(Icons.ios_share, size: 20),
                   label: const Text('Texto plano'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.accentMint,
-                    side: const BorderSide(color: AppTheme.accentMint),
+                    foregroundColor: scheme.primary,
+                    side: BorderSide(color: scheme.primary),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -425,13 +429,15 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                 child: ElevatedButton(
                   onPressed: _isGeneratingPdf ? null : _generateAndSavePDF,
                   style: ElevatedButton.styleFrom(
-                    foregroundColor: _isGeneratingPdf ? AppTheme.sacredRed : Colors.white,
-                    backgroundColor: _isGeneratingPdf ? Colors.white : AppTheme.accentMint,
+                    foregroundColor: _isGeneratingPdf ? scheme.primary : scheme.onPrimary,
+                    backgroundColor: _isGeneratingPdf
+                        ? scheme.surface
+                        : scheme.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: _isGeneratingPdf 
-                        ? const BorderSide(color: AppTheme.sacredRed, width: 2)
+                        ? BorderSide(color: scheme.primary, width: 2)
                         : BorderSide.none,
                     ),
                     elevation: 0,
@@ -439,12 +445,12 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: _isGeneratingPdf 
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.sacredRed),
+                            valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
                           ),
                         )
                       : const Row(

@@ -13,20 +13,21 @@ class ProfileScreen extends StatelessWidget {
     final userEmail = authProvider.userEmail ?? 'Usuario';
     final userName = authProvider.userFullName;
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Perfil',
           style: GoogleFonts.inter(
-            color: AppTheme.sacredDark,
+            color: scheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppTheme.accentMint),
+        iconTheme: IconThemeData(color: scheme.primary),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -37,8 +38,8 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 20),
               CircleAvatar(
                 radius: 50,
-                backgroundColor: AppTheme.accentMint.withOpacity(0.1),
-                child: const Icon(Icons.person, size: 50, color: AppTheme.accentMint),
+                backgroundColor: scheme.primary.withOpacity(0.12),
+                child: Icon(Icons.person, size: 50, color: scheme.primary),
               ),
               const SizedBox(height: 24),
               Text(
@@ -46,7 +47,7 @@ class ProfileScreen extends StatelessWidget {
                 style: GoogleFonts.montserrat(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.sacredDark,
+                  color: scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
@@ -54,7 +55,7 @@ class ProfileScreen extends StatelessWidget {
                 userEmail,
                 style: GoogleFonts.inter(
                   fontSize: 16,
-                  color: AppTheme.sacredDark.withOpacity(0.6),
+                  color: scheme.onSurface.withOpacity(0.62),
                 ),
               ),
               const SizedBox(height: 48),
@@ -64,7 +65,7 @@ class ProfileScreen extends StatelessWidget {
                 width: double.infinity,
                 child: TextButton.icon(
                   style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.sacredDark.withOpacity(0.5),
+                    foregroundColor: scheme.onSurface.withOpacity(0.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () => _handleDeleteAccount(context),
@@ -84,25 +85,28 @@ class ProfileScreen extends StatelessWidget {
     
     final bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        title: const Text('Eliminar Cuenta', style: TextStyle(color: AppTheme.sacredRed)),
-        content: const Text(
-          'Esta acción es IRREVERSIBLE. Se borrarán todas tus reflexiones, estadísticas y tu perfil permanentemente.\n\n¿Estás completamente seguro?',
-          style: TextStyle(color: AppTheme.sacredDark),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: AppTheme.sacredDark)),
+      builder: (dialogContext) {
+        final dScheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          backgroundColor: dScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Text('Eliminar Cuenta', style: TextStyle(color: dScheme.primary)),
+          content: Text(
+            'Esta acción es IRREVERSIBLE. Se borrarán todas tus reflexiones, estadísticas y tu perfil permanentemente.\n\n¿Estás completamente seguro?',
+            style: TextStyle(color: dScheme.onSurface.withOpacity(0.9)),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('SÍ, BORRAR TODO', style: TextStyle(color: AppTheme.sacredRed)),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text('Cancelar', style: TextStyle(color: dScheme.onSurface.withOpacity(0.75))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text('SÍ, BORRAR TODO', style: TextStyle(color: dScheme.primary)),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirm == true) {

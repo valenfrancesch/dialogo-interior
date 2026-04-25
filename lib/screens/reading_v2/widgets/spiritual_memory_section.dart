@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../models/prayer_entry.dart';
-import '../../../theme/app_theme.dart';
 import '../../../widgets/timeline_card.dart';
 
 class SpiritualMemorySection extends StatelessWidget {
@@ -21,8 +20,8 @@ class SpiritualMemorySection extends StatelessWidget {
       future: historyFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.accentMint),
+          return Center(
+            child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
           );
         }
         if (snapshot.hasError) {
@@ -34,11 +33,13 @@ class SpiritualMemorySection extends StatelessWidget {
         final entries = snapshot.data ?? <PrayerEntry>[];
         if (entries.isEmpty) {
           return _buildFirstTimeCard(
+            context,
             'Esta es la primera vez que reflexionas sobre este evangelio. ¡Qué emocionante comenzar este camino espiritual!',
           );
         }
         if (entries.length == 1) {
           return _buildFirstTimeCard(
+            context,
             'Esta es la primera vez que reflexionas sobre este evangelio.',
           );
         }
@@ -50,7 +51,7 @@ class SpiritualMemorySection extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.sacredDark,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -75,18 +76,19 @@ class SpiritualMemorySection extends StatelessWidget {
     );
   }
 
-  Widget _buildFirstTimeCard(String message) {
+  Widget _buildFirstTimeCard(BuildContext context, String message) {
+    final fill = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFEBE8E3),
+        color: fill,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.auto_stories,
-            color: AppTheme.sacredRed,
+            color: Theme.of(context).colorScheme.primary,
             size: 32,
           ),
           const SizedBox(width: 16),
@@ -95,7 +97,7 @@ class SpiritualMemorySection extends StatelessWidget {
               message,
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: AppTheme.sacredDark.withOpacity(0.9),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.9),
                 height: 1.6,
               ),
             ),

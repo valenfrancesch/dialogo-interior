@@ -10,8 +10,9 @@ import 'privacy_policy.dart';
 import 'about_screen.dart';
 import 'auth_screen.dart';
 import 'profile_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../widgets/reminder_settings_section.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -20,11 +21,12 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<custom_auth.AuthProvider>(context);
     final isGuest = !authProvider.isAuthenticated;
+    final scheme = Theme.of(context).colorScheme;
 
     final headerStyle = GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.bold,
-      color: AppTheme.sacredRed, // Standardized
+      color: scheme.primary,
     );
 
     return Scaffold(
@@ -51,7 +53,7 @@ class SettingsScreen extends StatelessWidget {
                       style: GoogleFonts.montserrat(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.sacredRed,
+                        color: scheme.primary,
                       ),
                     ),
                   ],
@@ -71,7 +73,10 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              const ReminderSettingsSection(),
+              Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
+              const SizedBox(height: 16),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -93,7 +98,7 @@ class SettingsScreen extends StatelessWidget {
                       subtitle: Text('Oculta la barra de estado para una lectura sin distracciones', 
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
                       value: isImmersive,
-                      activeColor: AppTheme.sacredRed,
+                      activeColor: scheme.primary,
                       onChanged: (val) {
                         prefs.setBool('isImmersiveModeEnabled', val);
                         setState(() {});
@@ -101,10 +106,10 @@ class SettingsScreen extends StatelessWidget {
                       secondary: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.sacredRed.withOpacity(0.1),
+                          color: scheme.primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.fullscreen, color: AppTheme.sacredRed),
+                        child: Icon(Icons.fullscreen, color: scheme.primary),
                       ),
                     );
                   },
@@ -124,23 +129,29 @@ class SettingsScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppTheme.accentMint.withOpacity(0.1),
+                              color: scheme.primary.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.text_fields, color: AppTheme.accentMint),
+                            child: Icon(Icons.text_fields, color: scheme.primary),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Tamaño del texto',
-                                  style: TextStyle(color: AppTheme.sacredDark, fontWeight: FontWeight.w500),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                                 Text(
                                   'Tamaño actual: ${fontSizeProvider.fontSize.round()}px',
-                                  style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.6), fontSize: 12),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),
@@ -152,8 +163,8 @@ class SettingsScreen extends StatelessWidget {
                         min: ReadingFontSizeProvider.minSize,
                         max: ReadingFontSizeProvider.maxSize,
                         divisions: 10,
-                        activeColor: AppTheme.accentMint,
-                        inactiveColor: AppTheme.accentMint.withOpacity(0.2),
+                        activeColor: scheme.primary,
+                        inactiveColor: scheme.primary.withOpacity(0.2),
                         label: '${fontSizeProvider.fontSize.round()}px',
                         onChanged: (val) => fontSizeProvider.setFontSize(val),
                       ),
@@ -162,8 +173,21 @@ class SettingsScreen extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('A', style: TextStyle(fontSize: 12, color: AppTheme.sacredDark.withOpacity(0.4))),
-                            Text('A', style: TextStyle(fontSize: 20, color: AppTheme.sacredDark.withOpacity(0.4), fontWeight: FontWeight.bold)),
+                            Text(
+                              'A',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                              ),
+                            ),
+                            Text(
+                              'A',
+                              style: TextStyle(
+                                fontSize: 20,
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -172,6 +196,57 @@ class SettingsScreen extends StatelessWidget {
                 );
               },
             ),
+            Consumer<ThemeModeProvider>(
+              builder: (context, themeMode, _) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Apariencia', style: headerStyle),
+                      const SizedBox(height: 12),
+                      SegmentedButton<ThemeMode>(
+                        style: ButtonStyle(
+                          foregroundColor: WidgetStateProperty.resolveWith((states) {
+                            final selected = states.contains(WidgetState.selected);
+                            return selected ? scheme.onPrimary : scheme.onSurface;
+                          }),
+                          backgroundColor: WidgetStateProperty.resolveWith((states) {
+                            final selected = states.contains(WidgetState.selected);
+                            return selected ? scheme.primary : scheme.surfaceContainerHighest;
+                          }),
+                          side: WidgetStatePropertyAll(
+                            BorderSide(color: scheme.outline.withOpacity(0.4)),
+                          ),
+                        ),
+                        segments: const [
+                          ButtonSegment<ThemeMode>(
+                            value: ThemeMode.system,
+                            label: Text('Auto'),
+                            icon: Icon(Icons.brightness_auto, size: 18),
+                          ),
+                          ButtonSegment<ThemeMode>(
+                            value: ThemeMode.light,
+                            label: Text('Claro'),
+                            icon: Icon(Icons.light_mode, size: 18),
+                          ),
+                          ButtonSegment<ThemeMode>(
+                            value: ThemeMode.dark,
+                            label: Text('Oscuro'),
+                            icon: Icon(Icons.dark_mode, size: 18),
+                          ),
+                        ],
+                        selected: {themeMode.themeMode},
+                        onSelectionChanged: (Set<ThemeMode> next) {
+                          themeMode.setThemeMode(next.first);
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
             Divider(color: AppTheme.sacredGold.withOpacity(0.3)),
             const SizedBox(height: 20),
             
@@ -262,9 +337,9 @@ class SettingsScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.sacredRed.withOpacity(0.1),
-                      foregroundColor: AppTheme.sacredRed,
-                      side: const BorderSide(color: AppTheme.sacredRed),
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      foregroundColor: scheme.primary,
+                      side: BorderSide(color: scheme.primary.withOpacity(0.55)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -304,19 +379,20 @@ class SettingsScreen extends StatelessWidget {
     required VoidCallback onTap,
     bool showChevron = true,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppTheme.sacredRed.withOpacity(0.1),
+          color: scheme.primary.withOpacity(0.12),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: AppTheme.sacredRed),
+        child: Icon(icon, color: scheme.primary),
       ),
-      title: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w500)),
-      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 12)) : null,
-      trailing: showChevron ? Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)) : null,
+      title: Text(title, style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w500)),
+      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(color: scheme.onSurface.withOpacity(0.6), fontSize: 12)) : null,
+      trailing: showChevron ? Icon(Icons.chevron_right, color: scheme.onSurface.withOpacity(0.3)) : null,
       onTap: onTap,
     );
   }
@@ -327,22 +403,30 @@ class SettingsScreen extends StatelessWidget {
     // Mostrar diálogo de confirmación
     final bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        title: Text('Cerrar Sesión', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        content: Text('¿Estás seguro de que quieres cerrar sesión?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancelar', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+      builder: (dialogContext) {
+        final dScheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          backgroundColor: dScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Text('Cerrar Sesión', style: TextStyle(color: dScheme.onSurface)),
+          content: Text(
+            '¿Estás seguro de que quieres cerrar sesión?',
+            style: TextStyle(color: dScheme.onSurface),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cerrar Sesión', style: TextStyle(color: AppTheme.sacredRed)),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              style: TextButton.styleFrom(foregroundColor: dScheme.onSurface),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: TextButton.styleFrom(foregroundColor: dScheme.primary),
+              child: const Text('Cerrar Sesión'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirm == true) {
@@ -365,14 +449,16 @@ class SettingsScreen extends StatelessWidget {
   void _showDonationDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+      builder: (dialogContext) {
+        final dScheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+        backgroundColor: dScheme.surface,
+        surfaceTintColor: Colors.transparent,
         title: Row(
           children: [
-            const Icon(Icons.volunteer_activism, color: AppTheme.sacredRed, size: 24),
+            Icon(Icons.volunteer_activism, color: dScheme.primary, size: 24),
             const SizedBox(width: 8),
-            Text('Apóyanos', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+            Text('Apóyanos', style: TextStyle(color: dScheme.onSurface)),
           ],
         ),
         content: Column(
@@ -381,7 +467,7 @@ class SettingsScreen extends StatelessWidget {
           children: [
             Text(
               'Tu ayuda es fundamental para mantener esta aplicación gratuita y sin publicidad. ¡Dios te bendiga!',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontStyle: FontStyle.italic),
+              style: TextStyle(color: dScheme.onSurface, fontStyle: FontStyle.italic),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -398,8 +484,8 @@ class SettingsScreen extends StatelessWidget {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.sacredRed,
-                foregroundColor: Colors.white,
+                backgroundColor: dScheme.primary,
+                foregroundColor: dScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -412,11 +498,13 @@ class SettingsScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar', style: TextStyle(color: AppTheme.sacredDark)),
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(foregroundColor: dScheme.onSurface),
+            child: const Text('Cerrar'),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 }

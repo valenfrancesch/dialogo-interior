@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/gospel_data.dart';
 import '../../repositories/gospel_repository.dart';
-import '../../theme/app_theme.dart';
 import '../../utils/app_load_failure.dart';
 import 'reading_content_scaffold.dart';
 
@@ -60,18 +59,19 @@ class _ReadingLoaderShellState extends State<ReadingLoaderShell> {
   }
 
   Widget _loading() {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentMint),
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
           ),
           const SizedBox(height: 16),
           Text(
             'Cargando lectura del día...',
             style: GoogleFonts.inter(
-              color: AppTheme.sacredDark.withOpacity(0.7),
+              color: scheme.onSurface.withOpacity(0.72),
               fontSize: 14,
             ),
           ),
@@ -81,6 +81,7 @@ class _ReadingLoaderShellState extends State<ReadingLoaderShell> {
   }
 
   Widget _error(Object error) {
+    final scheme = Theme.of(context).colorScheme;
     final failure = error is AppLoadFailure ? error : AppLoadFailure.from(error);
     final targetDate = widget.date ?? DateTime.now();
     final cached = GospelRepository.sessionCachedGospelFor(targetDate);
@@ -95,7 +96,7 @@ class _ReadingLoaderShellState extends State<ReadingLoaderShell> {
                   ? Icons.cloud_off
                   : Icons.error_outline,
               size: 64,
-              color: AppTheme.accentMint,
+              color: scheme.primary,
             ),
             const SizedBox(height: 16),
             Text(
@@ -104,7 +105,7 @@ class _ReadingLoaderShellState extends State<ReadingLoaderShell> {
               style: GoogleFonts.montserrat(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.sacredDark,
+                color: scheme.onSurface,
               ),
             ),
             const SizedBox(height: 12),
@@ -113,7 +114,7 @@ class _ReadingLoaderShellState extends State<ReadingLoaderShell> {
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: AppTheme.sacredDark.withOpacity(0.7),
+                color: scheme.onSurface.withOpacity(0.72),
               ),
             ),
             const SizedBox(height: 24),

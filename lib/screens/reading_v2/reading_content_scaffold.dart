@@ -114,7 +114,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => SingleChildScrollView(
+      builder: (sheetContext) => SingleChildScrollView(
         child: Container(
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
           child: Column(
@@ -126,30 +126,34 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.sacredDark,
+                  color: Theme.of(sheetContext).colorScheme.onSurface,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               _buildRecommendationItem(
+                sheetContext,
                 "🤫",
                 "Hacé silencio:",
                 "Acallá los ruidos de fuera, pero sobre todo los pensamientos de dentro.",
               ),
               const SizedBox(height: 16),
               _buildRecommendationItem(
+                sheetContext,
                 "🔕",
                 "Desconectate:",
                 "Para una mejor experiencia, te sugerimos silenciar las notificaciones durante este momento.",
               ),
               const SizedBox(height: 16),
               _buildRecommendationItem(
+                sheetContext,
                 "👣",
                 "Detente:",
                 "No leas con prisa. No es información, es una carta de amor para vos.",
               ),
               const SizedBox(height: 16),
               _buildRecommendationItem(
+                sheetContext,
                 "🙏",
                 "Pide luz:",
                 "La mente comprende, pero solo el Espíritu hace arder el corazón.",
@@ -160,7 +164,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.sacredDark.withOpacity(0.7),
+                  color: Theme.of(sheetContext).colorScheme.onSurface.withOpacity(0.75),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -168,9 +172,9 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppTheme.sacredGold.withOpacity(0.1),
+                  color: AppTheme.sacredGold.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.sacredGold.withOpacity(0.35)),
                 ),
                 child: Text(
                   "Ven, Espíritu Santo, llena los corazones de tus fieles, y enciende en ellos el fuego de tu amor.\n\nEnvía tu Espíritu Creador y renueva la faz de la tierra.\n\nOh Dios, que has iluminado los corazones de tus hijos con la luz del Espíritu Santo; haznos dóciles a sus inspiraciones para gustar siempre el bien y gozar de su consuelo.\n\nPor Cristo nuestro Señor. Amén.",
@@ -178,7 +182,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                     fontSize: 14,
                     height: 1.6,
                     fontStyle: FontStyle.italic,
-                    color: AppTheme.sacredDark.withOpacity(0.9),
+                    color: Theme.of(sheetContext).colorScheme.onSurface.withOpacity(0.92),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -187,7 +191,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentMint,
+                  backgroundColor: Theme.of(sheetContext).colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -212,10 +216,12 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
   }
 
   Widget _buildRecommendationItem(
+    BuildContext itemContext,
     String icon,
     String title,
     String description,
   ) {
+    final onSurface = Theme.of(itemContext).colorScheme.onSurface;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -227,7 +233,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 height: 1.5,
-                color: AppTheme.sacredDark,
+                color: onSurface,
               ),
               children: [
                 TextSpan(
@@ -236,7 +242,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                 ),
                 TextSpan(
                   text: description,
-                  style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.8)),
+                  style: TextStyle(color: onSurface.withOpacity(0.82)),
                 ),
               ],
             ),
@@ -253,9 +259,9 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -267,7 +273,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
               style: GoogleFonts.montserrat(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.sacredRed,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 16),
@@ -275,7 +281,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
               'Empieza a construir tu diario espiritual. Crea una cuenta sin costo para registrar tus propósitos de cada día y mantener tus reflexiones siempre seguras contigo, vayas donde vayas.',
               style: GoogleFonts.inter(
                 fontSize: 15,
-                color: AppTheme.sacredDark.withOpacity(0.8),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
@@ -291,7 +297,16 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                   ),
                 );
               },
-              child: const Text('Crear cuenta gratis'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('Crear cuenta gratis', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 12),
             OutlinedButton(
@@ -304,14 +319,24 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                   ),
                 );
               },
-              child: const Text('Ya tengo cuenta'),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                foregroundColor: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Ya tengo cuenta', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'Quizás más tarde',
-                style: TextStyle(color: AppTheme.sacredDark.withOpacity(0.5)),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -451,9 +476,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                 style: GoogleFonts.montserrat(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppTheme.sacredDark
-                      : AppTheme.sacredRed,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],
@@ -465,7 +488,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                 IconButton(
                   icon: const Icon(
                     Icons.arrow_back_ios,
-                    color: AppTheme.accentMint,
+                    color: AppTheme.sacredGold,
                     size: 20,
                   ),
                   onPressed: () => Navigator.of(context).pop(),
@@ -485,10 +508,10 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                         ),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: AppTheme.accentMint.withOpacity(0.5),
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
                           ),
                           borderRadius: BorderRadius.circular(20),
-                          color: AppTheme.accentMint.withOpacity(0.05),
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.09),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -496,7 +519,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                             const Icon(
                               Icons.favorite_outline,
                               size: 16,
-                              color: AppTheme.accentMint,
+                              color: AppTheme.sacredGold,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -504,7 +527,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                               style: GoogleFonts.montserrat(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.accentMint,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ],
@@ -519,7 +542,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                           style: GoogleFonts.inter(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.accentMint,
+                            color: Theme.of(context).colorScheme.primary,
                             letterSpacing: 1.5,
                           ),
                           maxLines: 1,
@@ -539,7 +562,7 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
               IconButton(
                 icon: const Icon(
                   Icons.ios_share,
-                  color: AppTheme.accentMint,
+                  color: AppTheme.sacredGold,
                   size: 20,
                 ),
                 onPressed: _showShareSheet,

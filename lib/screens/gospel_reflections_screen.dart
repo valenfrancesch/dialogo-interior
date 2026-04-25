@@ -136,7 +136,9 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.sacredRed)),
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+      ),
     );
 
     try {
@@ -174,9 +176,9 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
       isScrollControlled: true,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: AppTheme.sacredCream,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -198,7 +200,7 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
               style: GoogleFonts.montserrat(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.sacredRed,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 16),
@@ -248,7 +250,7 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
           style: GoogleFonts.montserrat(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: AppTheme.sacredDark,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ),
@@ -260,7 +262,9 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.sacredRed));
+      return Center(
+        child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+      );
     }
 
     if (_errorMessage != null) {
@@ -274,7 +278,10 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => _loadReflections(forceRefresh: true),
-              child: const Text('Reintentar', style: TextStyle(color: AppTheme.sacredRed)),
+              child: Text(
+                'Reintentar',
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              ),
             ),
           ],
         ),
@@ -301,7 +308,7 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
     }
 
     return RefreshIndicator(
-      color: AppTheme.sacredRed,
+      color: Theme.of(context).colorScheme.primary,
       onRefresh: () => _loadReflections(forceRefresh: true),
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -350,7 +357,7 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
                           style: GoogleFonts.montserrat(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.sacredRed,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 8),

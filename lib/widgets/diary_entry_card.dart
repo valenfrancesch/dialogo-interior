@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 class DiaryEntryCard extends StatelessWidget {
   final String date;
@@ -20,17 +19,19 @@ class DiaryEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final onSurface = scheme.onSurface;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark,
+          color: scheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.sacredDark.withOpacity(0.04),
+              color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.06),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -48,7 +49,7 @@ class DiaryEntryCard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
-                    color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
+                    color: onSurface.withOpacity(0.55),
                   ),
                 ),
                 Text(
@@ -56,7 +57,7 @@ class DiaryEntryCard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.accentMint,
+                    color: scheme.primary,
                   ),
                 ),
               ],
@@ -70,7 +71,7 @@ class DiaryEntryCard extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
                 fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
-                color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
+                color: onSurface.withOpacity(0.88),
                 height: 1.5,
               ),
               maxLines: 4, // Increased maxLines since title is gone

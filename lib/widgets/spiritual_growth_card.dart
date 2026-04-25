@@ -15,14 +15,16 @@ class SpiritualGrowthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final onSurface = scheme.onSurface;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark, // Mapped to Colors.white
+          color: scheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3), width: 1), // Visible border
+          border: Border.all(color: AppTheme.sacredGold.withOpacity(0.3), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,9 +38,9 @@ class SpiritualGrowthCard extends StatelessWidget {
                     color: AppTheme.accentMint.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.auto_stories,
-                    color: AppTheme.accentMint,
+                    color: scheme.primary,
                     size: 18,
                   ),
                 ),
@@ -52,7 +54,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                         style: GoogleFonts.montserrat(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
+                          color: onSurface.withOpacity(0.52),
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -61,7 +63,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.sacredDark, // Visible title
+                          color: onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -78,6 +80,7 @@ class SpiritualGrowthCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildStatBlock(
+                    context,
                     label: 'Reflexiones',
                     value: insight.totalReflections.toString(),
                     icon: Icons.edit,
@@ -86,6 +89,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatBlock(
+                    context,
                     label: 'Palabras Escritas',
                     value: insight.totalWords.toString(),
                     icon: Icons.text_fields,
@@ -107,14 +111,13 @@ class SpiritualGrowthCard extends StatelessWidget {
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
+                  color: onSurface.withOpacity(0.52),
                   letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 12),
               ...insight.historicalEntries
-                  .map((entry) => _buildHistoricalEntry(entry))
-                  ,
+                  .map((entry) => _buildHistoricalEntry(context, entry)),
             ],
 
             const SizedBox(height: 12),
@@ -125,7 +128,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.accentMint,
+                  color: scheme.primary,
                 ),
               ),
             ),
@@ -135,23 +138,28 @@ class SpiritualGrowthCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatBlock({
+  Widget _buildStatBlock(
+    BuildContext context, {
     required String label,
     required String value,
     required IconData icon,
     bool isText = false,
   }) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill = isDark ? scheme.surfaceContainerHighest : AppTheme.sacredCream;
+    final onSurface = scheme.onSurface;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppTheme.sacredCream, // Distinct background for blocks
+        color: fill,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.sacredGold.withOpacity(0.2), width: 0.5), // Visible border
+        border: Border.all(color: AppTheme.sacredGold.withOpacity(0.2), width: 0.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: AppTheme.accentMint, size: 16),
+          Icon(icon, color: scheme.primary, size: 16),
           const SizedBox(height: 6),
           if (!isText)
             Text(
@@ -159,7 +167,7 @@ class SpiritualGrowthCard extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.accentMint,
+                color: scheme.primary,
               ),
             )
           else
@@ -169,7 +177,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
+                  color: onSurface.withOpacity(0.85),
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -181,7 +189,7 @@ class SpiritualGrowthCard extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               fontSize: 10,
-              color: AppTheme.sacredDark.withOpacity(0.5), // Visible text
+              color: onSurface.withOpacity(0.52),
             ),
             textAlign: TextAlign.center,
           ),
@@ -190,7 +198,7 @@ class SpiritualGrowthCard extends StatelessWidget {
     );
   }
 
-  Widget _buildHistoricalEntry(LiturgicalMemoryEntry entry) {
+  Widget _buildHistoricalEntry(BuildContext context, LiturgicalMemoryEntry entry) {
     final yearsText = entry.yearsAgo == 1 ? 'Hace 1 año' : 'Hace 3 años';
     final backgroundColor = entry.yearsAgo == 1
         ? const Color(0xFF6366F1).withOpacity(0.1)
@@ -233,7 +241,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                   _formatDate(entry.date),
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: AppTheme.sacredDark.withOpacity(0.6), // Visible text
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.62),
                   ),
                 ),
               ),
@@ -246,7 +254,7 @@ class SpiritualGrowthCard extends StatelessWidget {
                 : entry.reflection,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: AppTheme.sacredDark.withOpacity(0.8), // Visible text
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
               height: 1.4,
             ),
           ),

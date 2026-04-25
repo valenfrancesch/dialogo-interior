@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../../models/prayer_entry.dart';
 import '../../../providers/app_providers.dart';
-import '../../../theme/app_theme.dart';
 import '../../../utils/text_formatter.dart';
 import '../../../widgets/selectable_text_content.dart';
 import '../models/reading_tab_descriptor.dart';
@@ -34,14 +33,15 @@ class ReadingTabPage extends StatelessWidget {
         ? TextFormatter.formatPsalm(cleanText)
         : TextFormatter.formatReadingText(cleanText);
 
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.sacredDark.withOpacity(0.04),
+            color: scheme.onSurface.withOpacity(0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -55,7 +55,7 @@ class ReadingTabPage extends StatelessWidget {
             style: GoogleFonts.montserrat(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: AppTheme.sacredDark,
+              color: scheme.onSurface,
             ),
           ),
           if (tab.type == ReadingTabType.commentary) ...[
@@ -65,7 +65,7 @@ class ReadingTabPage extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.sacredRed,
+                color: scheme.primary,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -77,7 +77,7 @@ class ReadingTabPage extends StatelessWidget {
               fontSize: fontSize,
               fontStyle: tab.italicContent ? FontStyle.italic : FontStyle.normal,
               height: 1.8,
-              color: AppTheme.sacredDark.withOpacity(0.9),
+              color: scheme.onSurface.withOpacity(0.9),
             ),
             highlightedTexts: highlights
                 .where((h) => h.source == tab.label)
@@ -91,7 +91,7 @@ class ReadingTabPage extends StatelessWidget {
               sourceString,
               style: GoogleFonts.inter(
                 fontSize: 11,
-                color: AppTheme.sacredDark.withOpacity(0.4),
+                color: scheme.onSurface.withOpacity(0.45),
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -102,7 +102,7 @@ class ReadingTabPage extends StatelessWidget {
               tab.source,
               style: GoogleFonts.inter(
                 fontSize: 12,
-                color: AppTheme.sacredDark.withOpacity(0.5),
+                color: scheme.onSurface.withOpacity(0.55),
               ),
             ),
           ],

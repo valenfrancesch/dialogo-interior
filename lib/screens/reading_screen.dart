@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:home_widget/home_widget.dart';
 import '../theme/app_theme.dart';
 import '../widgets/text_segment_toggle.dart';
 import '../widgets/selectable_text_content.dart';
@@ -13,15 +12,13 @@ import '../models/prayer_entry.dart';
 import '../repositories/gospel_repository.dart';
 import '../repositories/prayer_repository.dart';
 import '../widgets/saved_highlights_widget.dart';
-import '../services/notification_service.dart';
 import '../services/cache_manager.dart';
 import '../utils/text_formatter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart' as custom_auth;
 import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatform
 import 'package:shared_preferences/shared_preferences.dart';
-import '../constants/app_data.dart';
+import '../services/home_widget_sync_service.dart';
 import 'auth_screen.dart';
 import 'package:upgrader/upgrader.dart';
 import '../widgets/kindle_clock.dart';
@@ -65,7 +62,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: AppTheme.primaryDarkBg, // Now sacredCream
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: FutureBuilder<GospelData>(
         future: _gospelFuture,
         builder: (context, snapshot) {
@@ -115,7 +112,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
         failure.showUseCachedHint && cached != null;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: Center(
         child: Padding(
@@ -802,52 +799,17 @@ class _ReadingContentState extends State<_ReadingContent>
   }
 
   Future<void> _saveToSharedStorage() async {
-    // home_widget is not supported on Web
     if (kIsWeb) return;
 
     try {
-      // Configure App Group for iOS
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        await HomeWidget.setAppGroupId(AppData.appGroupId);
-      }
-
-      // Save the current date to track when data was last updated
-      final today = DateTime.now();
-      final dateKey =
-          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-      await HomeWidget.saveWidgetData<String>('widget_date', dateKey);
-
-      // Sort highlights: Gospel ('Evangelio') first, then everything else
-      final sortedHighlights = List<Highlight>.from(_highlights);
-      sortedHighlights.sort((a, b) {
-        if (a.source == 'Evangelio' && b.source != 'Evangelio') return -1;
-        if (a.source != 'Evangelio' && b.source == 'Evangelio') return 1;
-        return 0;
-      });
-
-      // Always save highlighted text (even if empty to clear previous value)
-      final highlightToSave = sortedHighlights.isNotEmpty
-          ? sortedHighlights.map((h) => '• ${h.text}').join('\n\n')
-          : '¿Qué mensaje te dice Jesús hoy?\nAbre la app para leer el Evangelio';
-
-      await HomeWidget.saveWidgetData<String>(
-        'highlighted_text',
-        highlightToSave,
-      );
-
-      // Always save purpose (even if empty to clear previous value)
       final purposeText = _purposeController.text.trim();
-      await HomeWidget.saveWidgetData<String>('purpose', purposeText);
-
-      // Update the widget
-      await HomeWidget.updateWidget(
-        name: 'DialogoWidgetProvider',
-        androidName: 'DialogoWidgetProvider',
-        iOSName: 'HomeWidgetProvider',
+      await HomeWidgetSyncService().sync(
+        gospel: widget.gospel,
+        highlights: _highlights,
+        purposeText: purposeText,
       );
-
       debugPrint(
-        'Widget updated: date="$dateKey", highlights=${_highlights.length}, purpose="$purposeText"',
+        'Widget updated: highlights=${_highlights.length}, purpose="$purposeText"',
       );
     } catch (e) {
       debugPrint('Error saving to shared storage: $e');

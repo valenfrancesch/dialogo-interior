@@ -291,6 +291,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<custom_auth.AuthProvider>(context);
+    final scheme = Theme.of(context).colorScheme;
     if (!authProvider.isAuthenticated) {
       return _buildGuestEmptyState();
     }
@@ -313,12 +314,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       const SizedBox(height: 8),
                       TextButton.icon(
                         onPressed: _applyStaleLibraryCache,
-                        icon: const Icon(Icons.offline_pin, color: AppTheme.sacredRed),
+                        icon: Icon(Icons.offline_pin, color: scheme.primary),
                         label: Text(
                           'Continuar igualmente',
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.sacredRed,
+                            color: scheme.primary,
                           ),
                         ),
                       ),
@@ -345,9 +346,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         style: GoogleFonts.montserrat(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).brightness == Brightness.dark 
-                              ? AppTheme.sacredDark 
-                              : AppTheme.sacredRed,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ],
@@ -357,14 +356,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   // Screen Title
                   Row(
                     children: [
-                      const Icon(Icons.auto_stories, color: AppTheme.accentMint, size: 28),
+                      Icon(Icons.auto_stories, color: scheme.primary, size: 28),
                       const SizedBox(width: 12),
                       Text(
                         'Biblioteca de Fe',
                         style: GoogleFonts.montserrat(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.sacredRed,
+                          color: scheme.onSurface,
                         ),
                       ),
                     ],
@@ -525,7 +524,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     icon: Icons.local_fire_department,
                     label: 'Racha Actual',
                     mainValue: '...',
-                    backgroundColor: const Color(0xFFEED9D9),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -535,7 +534,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     label: 'Reflexiones',
                     mainValue: '...',
                     secondaryValue: 'cargando',
-                    backgroundColor: const Color(0xFFEBE8E3),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
                   ),
                 ),
               ],
@@ -567,7 +566,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     label: 'Racha Actual',
                     mainValue: '${streakData.daysStreak}',
                     mainValueSuffix: 'días',
-                    backgroundColor: const Color(0xFFEED9D9),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -578,7 +577,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     mainValue: reflectionData.totalReflections.toString(),
                     mainValueSuffix: 'totales',
                     secondaryValue: '+${reflectionData.thisMonthCount} este mes',
-                    backgroundColor: const Color(0xFFEBE8E3),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
                     onTap: () {
                       Scrollable.ensureVisible(
                         _diarySectionKey.currentContext!,
@@ -599,13 +598,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark 
-            ? Colors.white 
-            : const Color(0xFFFDFBFA),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.sacredDark.withOpacity(0.03),
+            color: Colors.black.withOpacity(
+              Theme.of(context).brightness == Brightness.dark ? 0.28 : 0.03,
+            ),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -628,14 +627,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.chevron_left, color: AppTheme.sacredDark, size: 28),
+                    icon: Icon(Icons.chevron_left, color: Theme.of(context).colorScheme.onSurface, size: 28),
                     onPressed: () => _changeMonth(-1),
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
                   ),
                   const SizedBox(width: 16),
                   IconButton(
-                    icon: const Icon(Icons.chevron_right, color: AppTheme.sacredDark, size: 28),
+                    icon: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurface, size: 28),
                     onPressed: () => _changeMonth(1),
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
@@ -659,7 +658,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.sacredRed.withOpacity(0.5), // Match the brownish/red color
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.55),
                       ),
                     ),
                   ),
@@ -760,7 +759,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Text(
               'No hay reflexiones aún.',
-              style: GoogleFonts.inter(color: AppTheme.sacredDark.withOpacity(0.4)),
+              style: GoogleFonts.inter(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.45),
+              ),
             ),
           )
         else
@@ -807,8 +808,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           icon: const Icon(Icons.expand_more),
                           label: const Text('Cargar más'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.sacredRed,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24,
                               vertical: 12,
@@ -826,8 +827,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildGuestEmptyState() {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppTheme.primaryDarkBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -837,13 +839,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
               Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentMint.withOpacity(0.1),
+                  color: scheme.primary.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_stories,
                   size: 80,
-                  color: AppTheme.accentMint,
+                  color: scheme.primary,
                 ),
               ),
               const SizedBox(height: 48),
@@ -853,7 +855,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 style: GoogleFonts.montserrat(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.sacredRed,
+                  color: scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 20),
@@ -862,7 +864,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 16,
-                  color: AppTheme.sacredDark.withOpacity(0.7),
+                  color: scheme.onSurface.withOpacity(0.72),
                   height: 1.5,
                 ),
               ),

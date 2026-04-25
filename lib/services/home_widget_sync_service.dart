@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
-import '../../../constants/app_data.dart';
-import '../../../models/prayer_entry.dart';
+import '../constants/app_data.dart';
+import '../models/gospel_data.dart';
+import '../models/prayer_entry.dart';
+import '../utils/lock_screen_verse_preview.dart';
 
 class HomeWidgetSyncService {
   Future<void> sync({
+    required GospelData gospel,
     required List<Highlight> highlights,
     required String purposeText,
   }) async {
@@ -35,6 +37,18 @@ class HomeWidgetSyncService {
 
       await HomeWidget.saveWidgetData<String>('highlighted_text', highlightedText);
       await HomeWidget.saveWidgetData<String>('purpose', purposeText.trim());
+
+      final lockTitle = gospel.title;
+      final lockBody = sorted.isNotEmpty
+          ? sorted.first.text
+          : LockScreenVersePreview.fromEvangeliumText(gospel.evangeliumText);
+      await HomeWidget.saveWidgetData<String>('lock_title', lockTitle);
+      await HomeWidget.saveWidgetData<String>(
+        'lock_body',
+        lockBody.isEmpty
+            ? 'Abre la app para leer el Evangelio de hoy.'
+            : lockBody,
+      );
 
       await HomeWidget.updateWidget(
         name: 'DialogoWidgetProvider',

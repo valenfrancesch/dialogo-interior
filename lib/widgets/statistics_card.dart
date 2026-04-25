@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
 
 class StatisticsCard extends StatelessWidget {
   final IconData icon;
@@ -26,16 +25,19 @@ class StatisticsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final cardBg = backgroundColor ?? scheme.surface;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: backgroundColor ?? AppTheme.cardDark, // Mapped to Colors.white
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.sacredDark.withOpacity(0.04),
+              color: Colors.black.withOpacity(isDark ? 0.35 : 0.06),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -48,7 +50,7 @@ class StatisticsCard extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  color: AppTheme.accentMint,
+                  color: scheme.primary,
                   size: 24,
                 ),
                 const SizedBox(width: 8),
@@ -57,7 +59,7 @@ class StatisticsCard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.sacredDark.withOpacity(0.6), // Visible text
+                    color: scheme.onSurface.withOpacity(0.62),
                   ),
                 ),
               ],
@@ -68,17 +70,17 @@ class StatisticsCard extends StatelessWidget {
                 style: GoogleFonts.montserrat(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: valueColor ?? AppTheme.sacredDark,
+                  color: valueColor ?? scheme.onSurface,
                 ),
                 children: [
                   TextSpan(text: mainValue),
                   if (mainValueSuffix != null)
                     TextSpan(
                       text: ' $mainValueSuffix',
-                      style: GoogleFonts.inter( // Smaller and different font for the unit/suffix
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
-                        color: AppTheme.sacredDark.withOpacity(0.5),
+                        color: scheme.onSurface.withOpacity(0.52),
                       ),
                     ),
                 ],
@@ -91,7 +93,7 @@ class StatisticsCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
-                  color: AppTheme.accentMint,
+                  color: scheme.primary,
                 ),
               ),
             ],
