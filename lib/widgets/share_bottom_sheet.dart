@@ -342,7 +342,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
         (widget.purpose != null && widget.purpose!.trim().isNotEmpty);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -401,9 +401,10 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               _buildCheckboxRow('Reflexión', 'Reflexión'),
             if (widget.purpose != null && widget.purpose!.trim().isNotEmpty)
               _buildCheckboxRow('Propósito', 'Propósito del día'),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
           ],
 
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -459,7 +460,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
         ],
       ),
     );

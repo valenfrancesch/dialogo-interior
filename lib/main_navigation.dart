@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../screens/reading_screen.dart';
+import '../screens/reading_screen_v2.dart';
 import '../screens/library_screen.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
@@ -15,7 +15,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    ReadingScreen(),
+    ReadingScreenV2(),
     LibraryScreen(),
     SettingsScreen(),
   ];

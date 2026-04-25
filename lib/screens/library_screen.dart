@@ -12,7 +12,7 @@ import '../repositories/prayer_repository.dart';
 import '../services/library_statistics_service.dart';
 import '../services/cache_manager.dart';
 import '../models/prayer_entry.dart';
-import 'reading_screen.dart';
+import 'reading_screen_v2.dart';
 import '../widgets/gospel_button.dart';
 import 'gospel_reflections_screen.dart';
 
@@ -722,7 +722,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ReadingScreen(date: selectedDate),
+        builder: (context) => ReadingScreenV2(date: selectedDate),
       ),
     ).then((_) {
       // Refresh data when returning (in case a new entry was made)

@@ -7,7 +7,7 @@ import '../models/prayer_entry.dart';
 import '../services/bible_service.dart';
 import '../services/cache_manager.dart';
 
-import 'reading_screen.dart';
+import 'reading_screen_v2.dart';
 
 class GospelReflectionsScreen extends StatefulWidget {
   final String gospelName; // "Mateo", "Marcos", "Lucas", "Juan"
@@ -364,7 +364,7 @@ class _GospelReflectionsScreenState extends State<GospelReflectionsScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ReadingScreen(
+                          builder: (context) => ReadingScreenV2(
                             date: entry.date,
                             gospelReference: entry.gospelQuote,
                           ),
