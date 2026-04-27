@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,11 +14,15 @@ class Lecture {
   final String title;
   final String content;
   final String? reference;
+  final String? longTitle;
+  final String? source;
 
   Lecture({
     required this.title,
     required this.content,
     this.reference,
+    this.longTitle,
+    this.source,
   });
 }
 
@@ -72,6 +77,8 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
           'title': lecture.title,
           'content': cleanContent,
           'reference': lecture.reference ?? '',
+          'longTitle': lecture.longTitle ?? '',
+          'source': lecture.source ?? '',
         });
       }
     }
@@ -166,9 +173,10 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
       final logoBytes = await rootBundle.load('assets/images/logo.png');
     final logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
 
-    final fontRegular = await PdfGoogleFonts.merriweatherRegular();
-    final fontBold = await PdfGoogleFonts.merriweatherBold();
-    final fontItalic = await PdfGoogleFonts.merriweatherItalic();
+    // Avoid runtime font downloads (can hang on iOS preview/share flow).
+    final fontRegular = pw.Font.times();
+    final fontBold = pw.Font.timesBold();
+    final fontItalic = pw.Font.timesItalic();
 
     final doc = pw.Document(
       theme: pw.ThemeData.withFont(
@@ -232,10 +240,21 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
 
           for (var item in items) {
             final isLecture = ['1ª Lectura', 'Salmo', '2ª Lectura', 'Evangelio', 'Comentario'].contains(item['title']);
+            final isComment = item['title'] == 'Comentario';
             final hasRef = item.containsKey('reference') && item['reference']!.trim().isNotEmpty && 
                            item['reference'] != 'Lectura del Día' && item['reference'] != 'Reflexión Guardada';
+            final hasLongTitle = item.containsKey('longTitle') && item['longTitle']!.trim().isNotEmpty;
+            final source = item['source']?.trim() ?? '';
+            final author = item['reference']?.trim() ?? '';
+            final commentAttribution = <String>[
+              if (author.isNotEmpty) author,
+              if (source.isNotEmpty) source,
+            ].join(' • ');
 
-            if (isLecture && hasRef) {
+            if (isLecture && (hasRef || hasLongTitle)) {
+              final lectureDisplayTitle = hasLongTitle
+                  ? item['longTitle']!
+                  : (item['reference'] ?? item['title']!);
               widgets.add(pw.Text(
                 item['title']!.toUpperCase(), 
                 style: pw.TextStyle(
@@ -247,13 +266,24 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               ));
               widgets.add(pw.SizedBox(height: 2));
               widgets.add(pw.Text(
-                item['reference']!, 
+                lectureDisplayTitle, 
                 style: pw.TextStyle(
                   fontSize: 18, 
                   fontWeight: pw.FontWeight.bold, 
                   color: const PdfColor.fromInt(0xffA83232)
                 )
               ));
+              if (isComment && commentAttribution.isNotEmpty) {
+                widgets.add(pw.SizedBox(height: 4));
+                widgets.add(pw.Text(
+                  commentAttribution,
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    fontStyle: pw.FontStyle.italic,
+                    color: const PdfColor(0.4, 0.4, 0.4),
+                  ),
+                ));
+              }
             } else {
               widgets.add(pw.Text(
                 item['title']!, 
@@ -298,10 +328,17 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => doc.save(),
-      name: '${DateFormat('yyyy-MM-dd').format(widget.date)}-dialogo-interior.pdf',
-    );
+    final pdfBytes = await doc.save();
+
+    final fileName = '${DateFormat('yyyy-MM-dd').format(widget.date)}-dialogo-interior.pdf';
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
+    } else {
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdfBytes,
+        name: fileName,
+      );
+    }
     
     if (mounted) {
       setState(() => _isGeneratingPdf = false);

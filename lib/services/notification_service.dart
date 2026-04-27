@@ -15,6 +15,7 @@ class NotificationService {
   NotificationService._internal();
 
   static const int gospelNotificationId = 100;
+  static const int purposeNotificationId = 300;
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -95,6 +96,10 @@ class NotificationService {
     await _notifications.cancel(gospelNotificationId);
   }
 
+  Future<void> cancelPurposeReminder() async {
+    await _notifications.cancel(purposeNotificationId);
+  }
+
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate =
@@ -162,6 +167,94 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
+  }
+
+  tz.TZDateTime? _purposeReminderTimeFromNow(tz.TZDateTime now) {
+    final hour = now.hour;
+    if (hour >= 22) return null;
+    if (hour < 7) {
+      return tz.TZDateTime(tz.local, now.year, now.month, now.day, 11, 0);
+    }
+    if (hour < 13) {
+      return tz.TZDateTime(tz.local, now.year, now.month, now.day, 15, 30);
+    }
+    if (hour < 19) {
+      return tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 30);
+    }
+    if (hour < 22) {
+      return tz.TZDateTime(tz.local, now.year, now.month, now.day, 23, 0);
+    }
+    return null;
+  }
+
+  Future<void> schedulePurposeReminderFromNow(String purposeText) async {
+    final trimmedPurpose = purposeText.trim();
+    await cancelPurposeReminder();
+    if (trimmedPurpose.isEmpty) return;
+
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduledDate = _purposeReminderTimeFromNow(now);
+    if (scheduledDate == null || !scheduledDate.isAfter(now)) return;
+
+    final shortPurpose = trimmedPurpose.length > 120
+        ? '${trimmedPurpose.substring(0, 120)}...'
+        : trimmedPurpose;
+    final body = 'Tu propósito de hoy: $shortPurpose. Seguí viviendo el Evangelio';
+
+    try {
+      await _notifications.zonedSchedule(
+        purposeNotificationId,
+        'Diálogo Interior',
+        body,
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'purpose_channel',
+            'Proposito del Dia',
+            channelDescription: 'Recordatorio del proposito guardado hoy',
+            importance: Importance.max,
+            priority: Priority.high,
+            styleInformation: BigTextStyleInformation(''),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e) {
+      debugPrint(
+        'NotificationService: purpose exact schedule failed ($e), retrying inexact',
+      );
+      await _notifications.zonedSchedule(
+        purposeNotificationId,
+        'Diálogo Interior',
+        body,
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'purpose_channel',
+            'Proposito del Dia',
+            channelDescription: 'Recordatorio del proposito guardado hoy',
+            importance: Importance.max,
+            priority: Priority.high,
+            styleInformation: BigTextStyleInformation(''),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }

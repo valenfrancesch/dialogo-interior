@@ -124,6 +124,9 @@ class _SelectableTextContentState extends State<SelectableTextContent> {
   Widget build(BuildContext context) {
     return SelectableText.rich(
       _buildHighlightedTextSpan(),
+      // Prevent inner text viewport scrolling so vertical drag always
+      // belongs to the parent reading scroll.
+      scrollPhysics: const NeverScrollableScrollPhysics(),
       contextMenuBuilder: (context, editableTextState) {
         // Create menu button list
         final List<ContextMenuButtonItem> buttonItems = [

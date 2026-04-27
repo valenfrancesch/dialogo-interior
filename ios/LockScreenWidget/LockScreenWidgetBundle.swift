@@ -5,5 +5,8 @@ import WidgetKit
 struct LockScreenWidgetBundle: WidgetBundle {
     var body: some Widget {
         DialogoLockScreenWidget()
+        DialogoLuzSmallSolidWidget()
+        DialogoPurposeSmallSolidWidget()
+        DialogoCombinedMediumSolidWidget()
     }
 }

@@ -13,12 +13,18 @@ class ReflectionSection extends StatelessWidget {
     required this.onGuestTap,
     required this.purposeKey,
     required this.reflectionKey,
+    required this.keyboardInset,
+    required this.onReflectionChanged,
+    required this.onPurposeChanged,
   });
 
   final ReadingSessionController controller;
   final VoidCallback onGuestTap;
   final Key purposeKey;
   final Key reflectionKey;
+  final double keyboardInset;
+  final VoidCallback onReflectionChanged;
+  final VoidCallback onPurposeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -77,12 +83,16 @@ class ReflectionSection extends StatelessWidget {
             TextField(
               controller: controller.reflectionController,
               focusNode: controller.reflectionFocusNode,
-              onChanged: (_) => controller.onTextChanged(),
+              onChanged: (_) {
+                controller.onTextChanged();
+                onReflectionChanged();
+              },
               readOnly: isGuest,
               onTap: isGuest ? onGuestTap : null,
               minLines: 3,
               maxLines: null,
               keyboardType: TextInputType.multiline,
+              scrollPadding: EdgeInsets.only(bottom: keyboardInset + 120),
               style: GoogleFonts.inter(fontSize: 14, color: scheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Escribe una reflexión personal...',
@@ -135,12 +145,16 @@ class ReflectionSection extends StatelessWidget {
             TextField(
               controller: controller.purposeController,
               focusNode: controller.purposeFocusNode,
-              onChanged: (_) => controller.onTextChanged(),
+              onChanged: (_) {
+                controller.onTextChanged();
+                onPurposeChanged();
+              },
               readOnly: isGuest,
               onTap: isGuest ? onGuestTap : null,
               minLines: 1,
               maxLines: null,
               keyboardType: TextInputType.multiline,
+              scrollPadding: EdgeInsets.only(bottom: keyboardInset + 120),
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: scheme.onSurface,

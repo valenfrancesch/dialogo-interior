@@ -54,9 +54,9 @@ class _KindleClockState extends State<KindleClock> {
       _currentTime,
       style: GoogleFonts.inter(
         fontSize: 12,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
         color: isDarkMode
-            ? Colors.white.withOpacity(0.75)
+            ? Colors.white.withOpacity(0.95)
             : AppTheme.sacredDark.withOpacity(0.35),
         letterSpacing: 0.5,
       ),

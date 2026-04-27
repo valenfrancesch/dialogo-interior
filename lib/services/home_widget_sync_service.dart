@@ -7,6 +7,18 @@ import '../models/prayer_entry.dart';
 import '../utils/lock_screen_verse_preview.dart';
 
 class HomeWidgetSyncService {
+  static const List<String> _iosWidgetKinds = <String>[
+    'DialogoLuzSmallSolidWidget',
+    'DialogoPurposeSmallSolidWidget',
+    'DialogoCombinedMediumSolidWidget',
+    'DialogoLockScreenWidget',
+  ];
+  static const List<String> _androidWidgetProviders = <String>[
+    'DialogoLuzWidgetProvider',
+    'DialogoPurposeWidgetProvider',
+    'DialogoCombinedWidgetProvider',
+  ];
+
   Future<void> sync({
     required GospelData gospel,
     required List<Highlight> highlights,
@@ -51,10 +63,20 @@ class HomeWidgetSyncService {
       );
 
       await HomeWidget.updateWidget(
-        name: 'DialogoWidgetProvider',
-        androidName: 'DialogoWidgetProvider',
-        iOSName: 'HomeWidgetProvider',
+        name: 'DialogoCombinedWidgetProvider',
+        androidName: 'DialogoCombinedWidgetProvider',
+        iOSName: 'DialogoLockScreenWidget',
       );
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        for (final provider in _androidWidgetProviders) {
+          await HomeWidget.updateWidget(androidName: provider, name: provider);
+        }
+      }
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        for (final kind in _iosWidgetKinds) {
+          await HomeWidget.updateWidget(iOSName: kind);
+        }
+      }
     } catch (_) {
       // Ignore widget update failures to avoid blocking saves.
     }

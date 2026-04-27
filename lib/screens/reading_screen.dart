@@ -19,12 +19,14 @@ import '../providers/auth_provider.dart' as custom_auth;
 import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatform
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/home_widget_sync_service.dart';
+import '../services/notification_service.dart';
 import 'auth_screen.dart';
 import 'package:upgrader/upgrader.dart';
 import '../widgets/kindle_clock.dart';
 import '../providers/app_providers.dart';
 import '../widgets/share_bottom_sheet.dart';
 import '../utils/app_load_failure.dart';
+import '../services/reading_heart_session.dart';
 
 class ReadingScreen extends StatefulWidget {
   final GospelData? gospel;
@@ -254,6 +256,7 @@ class _ReadingContentState extends State<_ReadingContent>
   late PageController _pageController;
   late final Upgrader _upgrader;
   bool _isImmersiveMode = false;
+  bool _isHeartPrepared = ReadingHeartSession.isPrepared;
   final Map<int, GlobalKey> _purposeKeys = {};
 
   bool get _isGuest => !Provider.of<custom_auth.AuthProvider>(
@@ -655,6 +658,7 @@ class _ReadingContentState extends State<_ReadingContent>
     // Don't save if all three fields are empty
     if (reflectionText.isEmpty && _highlights.isEmpty && purposeText.isEmpty) {
       setState(() => _saveStatus = '');
+      await _saveToSharedStorage();
       return;
     }
 
@@ -709,6 +713,12 @@ class _ReadingContentState extends State<_ReadingContent>
       // Also invalidate library cache so it shows fresh data
       _cache.invalidateLibrary();
 
+      if (purposeText.isEmpty) {
+        await NotificationService().cancelPurposeReminder();
+      } else {
+        await NotificationService().schedulePurposeReminderFromNow(purposeText);
+      }
+
       setState(() => _saveStatus = 'saved');
       await _saveToSharedStorage();
     } catch (e) {
@@ -730,6 +740,7 @@ class _ReadingContentState extends State<_ReadingContent>
           title: '1ª Lectura',
           content: TextFormatter.formatReadingText(widget.gospel.firstReading),
           reference: widget.gospel.firstReadingReference,
+          longTitle: widget.gospel.firstReadingLongTitle,
         ),
       );
     }
@@ -741,6 +752,7 @@ class _ReadingContentState extends State<_ReadingContent>
           title: 'Salmo',
           content: TextFormatter.formatPsalm(widget.gospel.psalm),
           reference: widget.gospel.psalmReference,
+          longTitle: widget.gospel.psalmLongTitle,
         ),
       );
     }
@@ -754,6 +766,7 @@ class _ReadingContentState extends State<_ReadingContent>
             widget.gospel.secondReading!,
           ),
           reference: widget.gospel.secondReadingReference,
+          longTitle: widget.gospel.secondReadingLongTitle,
         ),
       );
     }
@@ -767,6 +780,7 @@ class _ReadingContentState extends State<_ReadingContent>
             widget.gospel.evangeliumText,
           ),
           reference: widget.gospel.title,
+          longTitle: widget.gospel.gospelLongTitle,
         ),
       );
     }
@@ -779,7 +793,9 @@ class _ReadingContentState extends State<_ReadingContent>
         Lecture(
           title: 'Comentario',
           content: widget.gospel.commentBody,
-          reference: widget.gospel.commentTitle,
+          reference: widget.gospel.commentAuthor,
+          longTitle: widget.gospel.commentTitle,
+          source: widget.gospel.commentSource,
         ),
       );
     }
@@ -1004,7 +1020,24 @@ class _ReadingContentState extends State<_ReadingContent>
           // Branding Header (Logo + Title)
           Row(
             children: [
-              Image.asset('assets/images/logo.png', height: 32, width: 32),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.25),
+                    width: 1,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: Image.asset(
+                    'assets/icon/app_logo.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
               const SizedBox(width: 12),
               Text(
                 'Diálogo interior',
@@ -1081,11 +1114,15 @@ class _ReadingContentState extends State<_ReadingContent>
   }
 
   Widget _buildPrepareHeartButton() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final heartColor = isDarkMode ? AppTheme.accentMint : AppTheme.sacredRed;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: GestureDetector(
         onTap: _showPrepareHeartModal,
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             border: Border.all(color: AppTheme.accentMint.withOpacity(0.5)),
@@ -1095,10 +1132,19 @@ class _ReadingContentState extends State<_ReadingContent>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.favorite_outline, // Or CupertinoIcons.heart
-                size: 16,
-                color: AppTheme.accentMint,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 280),
+                switchInCurve: Curves.easeOutBack,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) {
+                  return ScaleTransition(scale: animation, child: child);
+                },
+                child: Icon(
+                  _isHeartPrepared ? Icons.favorite : Icons.favorite_outline,
+                  key: ValueKey<bool>(_isHeartPrepared),
+                  size: 16,
+                  color: heartColor,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -1206,7 +1252,10 @@ class _ReadingContentState extends State<_ReadingContent>
 
                 // 5. Botón de cierre
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _markHeartPreparedWithDelay();
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.accentMint,
                     foregroundColor: Colors.white,
@@ -1231,6 +1280,15 @@ class _ReadingContentState extends State<_ReadingContent>
         );
       },
     );
+  }
+
+  Future<void> _markHeartPreparedWithDelay() async {
+    if (ReadingHeartSession.isPrepared) return;
+    await Future.delayed(const Duration(milliseconds: 350));
+    ReadingHeartSession.isPrepared = true;
+    if (mounted) {
+      setState(() => _isHeartPrepared = true);
+    }
   }
 
   Widget _buildRecommendationItem(

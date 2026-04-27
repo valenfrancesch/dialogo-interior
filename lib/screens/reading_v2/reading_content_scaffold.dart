@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +17,7 @@ import '../auth_screen.dart';
 import 'reading_session_controller.dart';
 import 'widgets/reading_tab_page.dart';
 import 'widgets/reflection_section.dart';
+import '../../services/reading_heart_session.dart';
 
 class ReadingContentScaffold extends StatefulWidget {
   const ReadingContentScaffold({
@@ -29,26 +33,36 @@ class ReadingContentScaffold extends StatefulWidget {
   State<ReadingContentScaffold> createState() => _ReadingContentScaffoldState();
 }
 
-class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
+class _ReadingContentScaffoldState extends State<ReadingContentScaffold>
+    with WidgetsBindingObserver {
   late final ReadingSessionController _session;
-  late final PageController _pageController;
-  final ScrollController _scrollController = ScrollController();
+  final ScrollController _contentScrollController = ScrollController();
   final Map<int, GlobalKey> _purposeKeys = {};
   final Map<int, GlobalKey> _reflectionKeys = {};
   bool _isImmersiveMode = false;
+  bool _isHeartPrepared = ReadingHeartSession.isPrepared;
+  Timer? _visibilityDebounce;
+  double _lastBottomInset = 0;
+  int _previousSelectedIndex = 0;
+  double _cardHorizontalDragDx = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final isGuest = !Provider.of<custom_auth.AuthProvider>(
       context,
       listen: false,
     ).isAuthenticated;
     _session = ReadingSessionController(gospel: widget.gospel, isGuest: isGuest);
-    _pageController = PageController(initialPage: _session.selectedIndex);
-    _session.purposeFocusNode.addListener(_ensurePurposeVisible);
-    _session.reflectionFocusNode.addListener(_ensureReflectionVisible);
+    _previousSelectedIndex = _session.selectedIndex;
+    _session.purposeFocusNode.addListener(_onPurposeFocusChange);
+    _session.reflectionFocusNode.addListener(_onReflectionFocusChange);
     _checkImmersiveMode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _lastBottomInset = MediaQuery.of(context).viewInsets.bottom;
+    });
   }
 
   @override
@@ -56,12 +70,13 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
     if (_isImmersiveMode) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
-    _session.purposeFocusNode.removeListener(_ensurePurposeVisible);
-    _session.reflectionFocusNode.removeListener(_ensureReflectionVisible);
+    WidgetsBinding.instance.removeObserver(this);
+    _visibilityDebounce?.cancel();
+    _session.purposeFocusNode.removeListener(_onPurposeFocusChange);
+    _session.reflectionFocusNode.removeListener(_onReflectionFocusChange);
     _session.saveNow();
     _session.dispose();
-    _pageController.dispose();
-    _scrollController.dispose();
+    _contentScrollController.dispose();
     super.dispose();
   }
 
@@ -74,36 +89,101 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
     if (mounted) setState(() {});
   }
 
-  void _ensurePurposeVisible() {
-    if (!_session.purposeFocusNode.hasFocus) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final context = _purposeKeys[_session.selectedIndex]?.currentContext;
-      if (context != null) {
+  @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    final view = View.of(context);
+    final bottomInset = view.viewInsets.bottom / view.devicePixelRatio;
+    if ((bottomInset - _lastBottomInset).abs() < 1) return;
+    _lastBottomInset = bottomInset;
+    _scheduleEnsureActiveFieldVisible(const Duration(milliseconds: 80));
+  }
+
+  GlobalKey? _activeFieldKey() {
+    if (_session.purposeFocusNode.hasFocus) {
+      return _purposeKeys[_session.selectedIndex];
+    }
+    if (_session.reflectionFocusNode.hasFocus) {
+      return _reflectionKeys[_session.selectedIndex];
+    }
+    return null;
+  }
+
+  void _scheduleEnsureActiveFieldVisible([Duration delay = Duration.zero]) {
+    if (!_session.purposeFocusNode.hasFocus &&
+        !_session.reflectionFocusNode.hasFocus) {
+      return;
+    }
+    _visibilityDebounce?.cancel();
+    _visibilityDebounce = Timer(delay, () {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final activeContext = _activeFieldKey()?.currentContext;
+        if (activeContext == null) return;
         Scrollable.ensureVisible(
-          context,
-          duration: const Duration(milliseconds: 250),
+          activeContext,
+          duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
           alignment: 0.2,
           alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
         );
-      }
+      });
     });
   }
 
-  void _ensureReflectionVisible() {
+  void _onPurposeFocusChange() {
+    if (!_session.purposeFocusNode.hasFocus) return;
+    _scheduleEnsureActiveFieldVisible();
+  }
+
+  void _onReflectionFocusChange() {
     if (!_session.reflectionFocusNode.hasFocus) return;
+    _scheduleEnsureActiveFieldVisible();
+  }
+
+  void _onInputExpanded(FocusNode node) {
+    if (!node.hasFocus) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final context = _reflectionKeys[_session.selectedIndex]?.currentContext;
-      if (context != null) {
-        Scrollable.ensureVisible(
-          context,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-          alignment: 0.2,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-        );
-      }
+      _scheduleEnsureActiveFieldVisible(const Duration(milliseconds: 16));
     });
+  }
+
+  void _setSelectedIndex(int index) {
+    final clamped = index.clamp(0, _session.tabs.length - 1);
+    if (clamped == _session.selectedIndex) return;
+    setState(() {
+      _previousSelectedIndex = _session.selectedIndex;
+    });
+    _session.setSelectedIndex(clamped);
+  }
+
+  void _onCardDragStart(DragStartDetails details) {
+    _cardHorizontalDragDx = 0;
+  }
+
+  void _onCardDragUpdate(DragUpdateDetails details) {
+    _cardHorizontalDragDx += details.delta.dx;
+  }
+
+  void _onCardDragEnd(DragEndDetails details) {
+    const minVelocity = 350.0;
+    const minDistance = 56.0;
+    final velocity = details.primaryVelocity ?? 0;
+    final hasStrongVelocity = velocity.abs() >= minVelocity;
+    final hasStrongDistance = _cardHorizontalDragDx.abs() >= minDistance;
+    if (!hasStrongVelocity && !hasStrongDistance) {
+      _cardHorizontalDragDx = 0;
+      return;
+    }
+
+    final isSwipeToNext = hasStrongVelocity
+        ? velocity < 0
+        : _cardHorizontalDragDx < 0;
+    final current = _session.selectedIndex;
+    final next = isSwipeToNext ? current + 1 : current - 1;
+    _setSelectedIndex(next);
+    _cardHorizontalDragDx = 0;
   }
 
   void _showPrepareHeartModal() {
@@ -189,7 +269,10 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _markHeartPreparedWithDelay();
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(sheetContext).colorScheme.primary,
                   foregroundColor: Colors.white,
@@ -213,6 +296,15 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
         ),
       ),
     );
+  }
+
+  Future<void> _markHeartPreparedWithDelay() async {
+    if (ReadingHeartSession.isPrepared) return;
+    await Future.delayed(const Duration(milliseconds: 350));
+    ReadingHeartSession.isPrepared = true;
+    if (mounted) {
+      setState(() => _isHeartPrepared = true);
+    }
   }
 
   Widget _buildRecommendationItem(
@@ -367,64 +459,56 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
       animation: _session,
       builder: (context, _) {
         final tabLabels = _session.tabs.map((t) => t.shortLabel).toList();
+        final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+        final selectedIndex = _session.selectedIndex;
+        final tab = _session.tabs[selectedIndex];
+        _purposeKeys.putIfAbsent(selectedIndex, GlobalKey.new);
+        _reflectionKeys.putIfAbsent(selectedIndex, GlobalKey.new);
         return SafeArea(
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTap: () => FocusScope.of(context).unfocus(),
             child: Column(
               children: [
-              if (_isImmersiveMode)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(left: 16, top: 4),
-                  alignment: Alignment.centerLeft,
-                  child: const KindleClock(),
-                ),
-              Expanded(
-                child: NestedScrollView(
-                  controller: _scrollController,
-                  headerSliverBuilder: (_, __) => [
-                    SliverToBoxAdapter(child: _buildHeader()),
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _ToggleHeaderDelegate(
-                        child: Container(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: TextSegmentToggle(
-                            segments: tabLabels,
-                            initialIndex: _session.selectedIndex,
-                            onChanged: (index) {
-                              _session.setSelectedIndex(index);
-                              _pageController.animateToPage(
-                                index,
-                                duration: const Duration(milliseconds: 250),
-                                curve: Curves.easeInOut,
-                              );
-                            },
+                if (_isImmersiveMode)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.only(left: 16, top: 4),
+                    alignment: Alignment.centerLeft,
+                    child: const KindleClock(),
+                  ),
+                Expanded(
+                  child: CustomScrollView(
+                    key: const PageStorageKey<String>('reading_v2_content'),
+                    controller: _contentScrollController,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildHeader()),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _ToggleHeaderDelegate(
+                          child: Container(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: TextSegmentToggle(
+                              segments: tabLabels,
+                              initialIndex: _session.selectedIndex,
+                              onChanged: _setSelectedIndex,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                  body: PageView.builder(
-                    controller: _pageController,
-                    itemCount: _session.tabs.length,
-                    onPageChanged: _session.setSelectedIndex,
-                    itemBuilder: (context, index) {
-                      _purposeKeys.putIfAbsent(index, () => GlobalKey());
-                      _reflectionKeys.putIfAbsent(index, () => GlobalKey());
-                      final tab = _session.tabs[index];
-                      return SingleChildScrollView(
-                        key: PageStorageKey<String>('reading_v2_tab_$index'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 20,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ReadingTabPage(
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onHorizontalDragStart: _onCardDragStart,
+                            onHorizontalDragUpdate: _onCardDragUpdate,
+                            onHorizontalDragEnd: _onCardDragEnd,
+                            child: ReadingTabPage(
+                              key: ValueKey<int>(selectedIndex),
                               tab: tab,
                               highlights: _session.highlights,
                               onHighlight: (selectedText) {
@@ -439,21 +523,35 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                                 );
                               },
                             ),
-                            ReflectionSection(
-                              controller: _session,
-                              onGuestTap: _showGuestBottomSheet,
-                              purposeKey: _purposeKeys[index]!,
-                              reflectionKey: _reflectionKeys[index]!,
-                            ),
-                          ],
+                          ),
                         ),
-                      );
-                    },
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: ReflectionSection(
+                            controller: _session,
+                            onGuestTap: _showGuestBottomSheet,
+                            purposeKey: _purposeKeys[selectedIndex]!,
+                            reflectionKey: _reflectionKeys[selectedIndex]!,
+                            keyboardInset: keyboardInset,
+                            onReflectionChanged: () => _onInputExpanded(
+                              _session.reflectionFocusNode,
+                            ),
+                            onPurposeChanged: () => _onInputExpanded(
+                              _session.purposeFocusNode,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: SizedBox(height: math.max(32.0, keyboardInset + 24)),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
         );
       },
@@ -462,6 +560,8 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
 
   Widget _buildHeader() {
     final dateText = _formatDate(widget.gospel.date);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final heartColor = isDarkMode ? AppTheme.sacredGold : AppTheme.sacredRed;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
@@ -501,7 +601,9 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                     InkWell(
                       onTap: _showPrepareHeartModal,
                       borderRadius: BorderRadius.circular(20),
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 6,
@@ -516,10 +618,24 @@ class _ReadingContentScaffoldState extends State<ReadingContentScaffold> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.favorite_outline,
-                              size: 16,
-                              color: AppTheme.sacredGold,
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 280),
+                              switchInCurve: Curves.easeOutBack,
+                              switchOutCurve: Curves.easeIn,
+                              transitionBuilder: (child, animation) {
+                                return ScaleTransition(
+                                  scale: animation,
+                                  child: child,
+                                );
+                              },
+                              child: Icon(
+                                _isHeartPrepared
+                                    ? Icons.favorite
+                                    : Icons.favorite_outline,
+                                key: ValueKey<bool>(_isHeartPrepared),
+                                size: 16,
+                                color: heartColor,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -618,3 +734,4 @@ class _ToggleHeaderDelegate extends SliverPersistentHeaderDelegate {
     return child != oldDelegate.child;
   }
 }
+

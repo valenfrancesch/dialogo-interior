@@ -31,13 +31,29 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <receiver android:name="com.dialogointerior.app.DialogoWidgetProvider"
+        <receiver android:name="com.dialogointerior.app.DialogoLuzWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
-                android:resource="@xml/widget_info" />
+                android:resource="@xml/widget_luz_small_info" />
+        </receiver>
+        <receiver android:name="com.dialogointerior.app.DialogoPurposeWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_purpose_small_info" />
+        </receiver>
+        <receiver android:name="com.dialogointerior.app.DialogoCombinedWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_combined_medium_info" />
         </receiver>
     </application>
     <!-- Required to query activities that can process text and open URLs -->

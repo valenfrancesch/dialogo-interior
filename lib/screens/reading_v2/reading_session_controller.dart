@@ -6,6 +6,7 @@ import '../../models/gospel_data.dart';
 import '../../models/prayer_entry.dart';
 import '../../repositories/prayer_repository.dart';
 import '../../services/cache_manager.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/share_bottom_sheet.dart';
 import 'mappers/reading_tab_mapper.dart';
 import 'models/reading_tab_descriptor.dart';
@@ -61,6 +62,7 @@ class ReadingSessionController extends ChangeNotifier {
     if (!isGuest) {
       await _loadSavedReflection();
     }
+    reflectionController.addListener(_handleReflectionAutocapitalization);
     reflectionFocusNode.addListener(_onFocusChanged);
     purposeFocusNode.addListener(_onFocusChanged);
     await _widgetSyncService.sync(
@@ -81,6 +83,35 @@ class ReadingSessionController extends ChangeNotifier {
     // Intentionally no global rebuild while typing.
     // Rebuilding the whole NestedScrollView/PageView on each keystroke can
     // cause caret-visibility jumps in multiline inputs.
+  }
+
+  void _handleReflectionAutocapitalization() {
+    final text = reflectionController.text;
+    final selectionIndex = reflectionController.selection.baseOffset;
+
+    if (selectionIndex > 0) {
+      final segment = text.substring(0, selectionIndex);
+      if (segment.length >= 3) {
+        final lastChar = segment.substring(segment.length - 1);
+        final punctSpace = segment.substring(
+          segment.length - 3,
+          segment.length - 1,
+        );
+
+        if (RegExp(r'[.!?] ').hasMatch(punctSpace) &&
+            RegExp(r'[a-z]').hasMatch(lastChar)) {
+          final newText =
+              text.substring(0, selectionIndex - 1) +
+              lastChar.toUpperCase() +
+              text.substring(selectionIndex);
+
+          reflectionController.value = reflectionController.value.copyWith(
+            text: newText,
+            selection: TextSelection.collapsed(offset: selectionIndex),
+          );
+        }
+      }
+    }
   }
 
   void setSelectedIndex(int index) {
@@ -163,8 +194,16 @@ class ReadingSessionController extends ChangeNotifier {
     final reflectionText = reflectionController.text.trim();
     final purposeText = purposeController.text.trim();
     if (reflectionText.isEmpty && highlights.isEmpty && purposeText.isEmpty) {
+      _lastReflectionText = '';
+      _lastPurposeText = '';
+      _lastHighlightsSignature = '';
       saveStatus = '';
       notifyListeners();
+      await _widgetSyncService.sync(
+        gospel: gospel,
+        highlights: const <Highlight>[],
+        purposeText: '',
+      );
       return;
     }
 
@@ -200,6 +239,11 @@ class ReadingSessionController extends ChangeNotifier {
       _lastReflectionText = reflectionText;
       _lastPurposeText = purposeText;
       _lastHighlightsSignature = _highlightsSignature(highlights);
+      if (purposeText.isEmpty) {
+        await NotificationService().cancelPurposeReminder();
+      } else {
+        await NotificationService().schedulePurposeReminderFromNow(purposeText);
+      }
       saveStatus = 'saved';
       notifyListeners();
       await _widgetSyncService.sync(
@@ -220,6 +264,8 @@ class ReadingSessionController extends ChangeNotifier {
             title: tab.label,
             content: tab.content,
             reference: tab.reference,
+            longTitle: tab.title,
+            source: tab.source,
           ),
         )
         .toList();
@@ -236,6 +282,7 @@ class ReadingSessionController extends ChangeNotifier {
   @override
   void dispose() {
     _saveDebounce?.cancel();
+    reflectionController.removeListener(_handleReflectionAutocapitalization);
     reflectionController.dispose();
     purposeController.dispose();
     reflectionFocusNode.dispose();
